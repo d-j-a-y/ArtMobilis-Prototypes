@@ -1,0 +1,7 @@
+ofxGui
+ofxOpenCv
+ofxXmlSettings
+ofxAruco
+ofxCv
+ofxLibwebsockets
+ofxTimeline
