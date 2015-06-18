@@ -19,5 +19,5 @@ Nécessite les ofxAddons (à mettre dans le dossier addons de openFrameworks):
 Imprimer les marqueurs du dossier bin/data: board.png et/ou boardImage.png
 
 Sous Linux:
-[![Patreon](assets/linux.png)]
+[![Capture](assets/linux.png)]
 
