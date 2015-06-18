@@ -5,3 +5,8 @@ ofxAruco
 ofxCv
 ofxLibwebsockets
 ofxTimeline
+ofxMSATimer
+ofxTimecode
+ofxTween
+ofxTextInputField
+
