@@ -2,6 +2,9 @@
 
 #include "ofMain.h"
 #include "ofxAruco.h"
+#include "Map.h"
+#include "OpenStreetMapProvider.h"
+#include "GeoUtils.h"
 
 class ofApp : public ofBaseApp{
 
@@ -32,5 +35,6 @@ public:
 	bool showBoardImage;
 	ofImage board;
 	ofImage marker;
-		
+
+	Map map;
 };

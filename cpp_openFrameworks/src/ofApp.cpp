@@ -48,6 +48,14 @@ void ofApp::setup(){
 	ofPixels pixels;
 	ofBitmapStringGetTextureRef().readToPixels(pixels);
 	ofSaveImage(pixels, "font.bmp");
+
+	// maps
+	map.setup(std::shared_ptr<OpenStreetMapProvider>(new OpenStreetMapProvider()),
+		ofGetWidth() / 2,
+		ofGetHeight() / 2);
+
+	map.setGeoLocationCenter(GeoLocation(43.6244, 7.0306));
+	map.setZoom(12);
 }
 
 //--------------------------------------------------------------
@@ -60,8 +68,30 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
+	// map
+	map.draw();
+
+	ofSetColor(255, 127, 255);
+
+	cout << map.getGeoLocationCenter() << endl;
+
+	ofDrawBitmapStringHighlight(ofToString(map.getGeoLocationCenter()),
+		ofGetWidth() / 2,
+		ofGetHeight() / 2);
+
+	ofVec2d mousePosition(mouseX, mouseY);
+
+	ofDrawBitmapStringHighlight(ofToString(map.pointToTileCoordinate(mousePosition)),
+		mouseX + 16,
+		mouseY);
+
+	ofDrawBitmapStringHighlight(ofToString(map.pointToGeolocation(mousePosition)),
+		mouseX + 16,
+		mouseY + 14);
+
+	// video + markers
 	ofSetColor(255);
-	video->draw(0, 0);
+	video->draw(200, 200);
 
 	//aruco.draw();
 
@@ -94,6 +124,8 @@ void ofApp::draw(){
 	ofDrawBitmapString("i toggles board image", 20, 100);
 	ofDrawBitmapString("s saves board image", 20, 120);
 	ofDrawBitmapString("0-9 saves marker image", 20, 140);
+
+
 }
 
 //--------------------------------------------------------------

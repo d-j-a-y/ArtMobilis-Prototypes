@@ -9,4 +9,4 @@ ofxMSATimer
 ofxTimecode
 ofxTween
 ofxTextInputField
-
+ofxMaps
