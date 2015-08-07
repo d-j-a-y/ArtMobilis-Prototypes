@@ -12,6 +12,7 @@ ofxMaps
 ofxMediaType
 ofxMSATimer
 ofxNetworkUtils
+ofxSpatialHash
 ofxSSLManager
 ofxTaskQueue
 ofxTimecode

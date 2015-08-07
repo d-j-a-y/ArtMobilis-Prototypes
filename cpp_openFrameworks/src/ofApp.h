@@ -2,9 +2,11 @@
 
 #include "ofMain.h"
 #include "ofxAruco.h"
-#include "Map.h"
-#include "OpenStreetMapProvider.h"
+#include "ofxMaps.h"
 #include "GeoUtils.h"
+
+using namespace ofx;
+using namespace std;
 
 class ofApp : public ofBaseApp{
 
@@ -36,5 +38,8 @@ public:
 	ofImage board;
 	ofImage marker;
 
-	Map map;
+	// Maps
+	std::string Gd(int zoomLevel, double latitude, double longitude);
+	std::vector<Maps::TileLayer::SharedPtr> layers;
+	int currentLayer;
 };
