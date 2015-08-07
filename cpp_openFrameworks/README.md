@@ -31,3 +31,6 @@ Sous Linux:
 
 Sous Windows:
 ![Capture](assets/windows.jpg)
+
+Fond de carte openStreetMap:
+![Capture](assets/osm.jpg)

@@ -72,15 +72,16 @@ void ofApp::setup(){
 		ofGetWidth(),
 		ofGetHeight());
 
-	layers[1]->setup(std::make_shared<Maps::EsriSatelliteTileProvider>(),
-		ofGetWidth(),
+	//layers[1]->setup(std::make_shared<Maps::EsriSatelliteTileProvider>(),
+	layers[1]->setup(std::make_shared<Maps::StamenWatercolorTileProvider>(),
+			ofGetWidth(),
 		ofGetHeight());
 
 	layers[2]->setup(std::make_shared<Maps::GoogleAerialTileProvider>(),
 		ofGetWidth(),
 		ofGetHeight());
 
-	currentLayer = 2;
+	currentLayer = 1;
 
 	for (std::size_t i = 0; i < layers.size(); ++i)
 	{
