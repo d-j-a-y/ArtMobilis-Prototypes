@@ -85,7 +85,7 @@ void ofApp::setup(){
 
 	for (std::size_t i = 0; i < layers.size(); ++i)
 	{
-		layers[i]->setCenter(casa, 19);
+		layers[i]->setCenter(casa, 9);
 	}
 
 
