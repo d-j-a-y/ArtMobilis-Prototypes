@@ -96,7 +96,7 @@ void ofApp::setup(){
 void ofApp::update(){
 	video->update();
 	if (video->isFrameNew()){
-		//aruco.detectBoards(video->getPixelsRef());
+		aruco.detectBoards(video->getPixels());
 	}
 }
 
@@ -124,8 +124,8 @@ void ofApp::draw(){
 		mouseY + 14);
 
 	// video + markers
-	ofSetColor(255);
-	video->draw(200, 200);	  */
+	ofSetColor(255);   */
+	video->draw(200, 200);	 
 	ofBackgroundGradient(ofColor(255), ofColor(0));
 
 	ofDrawBitmapString(ofToString(layers[0]->getCenter()), ofVec2f(15, 15));
@@ -135,7 +135,7 @@ void ofApp::draw(){
 
 	ofPushMatrix();
 
-	 layers[currentLayer]->draw(0, 0);
+	 layers[currentLayer]->draw(100, 400);
 	//if (ofGetKeyPressed('0'))
 	//{
 	//	layers[0]->draw(0, 0);
@@ -155,9 +155,9 @@ void ofApp::draw(){
 	//	//        }
 	//}
 	ofPopMatrix();
-	//aruco.draw();
+	aruco.draw();
 
-	/*if (showMarkers){
+	if (showMarkers){
 		for (int i = 0; i<aruco.getNumMarkers(); i++){
 			aruco.begin(i);
 			drawMarker(0.15, ofColor::white);
@@ -165,7 +165,7 @@ void ofApp::draw(){
 		}
 	}
 
-
+	
 	if (showBoard && aruco.getBoardProbability()>0.03){
 		for (int i = 0; i<aruco.getNumBoards(); i++){
 			aruco.beginBoard(i);
@@ -174,7 +174,7 @@ void ofApp::draw(){
 		}
 	}
 
-
+	
 	ofSetColor(255);
 	if (showBoardImage){
 		board.draw(ofGetWidth() - 320, 0, 320, 320 * float(board.getHeight()) / float(board.getWidth()));
@@ -187,7 +187,6 @@ void ofApp::draw(){
 	ofDrawBitmapString("s saves board image", 20, 120);
 	ofDrawBitmapString("0-9 saves marker image", 20, 140);
 
-	 */
 }
 
 //--------------------------------------------------------------
