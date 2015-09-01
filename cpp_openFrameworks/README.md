@@ -6,6 +6,8 @@ Développé collaborativement par plusieurs développeurs, graphistes et artiste
 
 Dossier application openFrameworks (C++).
 
+Utiliser la branche master de openFrameworks ( https://github.com/openframeworks/openFrameworks )
+
 Nécessite les ofxAddons (à mettre dans le dossier addons de openFrameworks):
 - https://github.com/brucelane/ofxAruco ( modifié pour éviter run-time error décrite ici: https://github.com/arturoc/ofxAruco/issues/3 )
 - https://github.com/kylemcdonald/ofxCv branch develop
