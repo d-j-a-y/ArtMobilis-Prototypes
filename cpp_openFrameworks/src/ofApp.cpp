@@ -2,7 +2,7 @@
 #include "ofxCv.h"
 #include "ofBitmapFont.h"
 
-void drawMarker(float size, const ofColor & color){
+void drawMarker(float size, const ofColor & color) {
 	ofDrawAxis(size);
 	ofPushMatrix();
 	// move up from the center by size*.5
@@ -18,7 +18,7 @@ void drawMarker(float size, const ofColor & color){
 }
 
 //--------------------------------------------------------------
-void ofApp::setup(){
+void ofApp::setup() {
 	ofSetFrameRate(60);
 	ofSetVerticalSync(true);
 	ofEnableAlphaBlending();
@@ -28,12 +28,12 @@ void ofApp::setup(){
 	useVideo = false;
 	string boardName = "boardConfiguration.yml";
 
-	if (useVideo){
+	if (useVideo) {
 		player.loadMovie("videoboard.mp4");
 		player.play();
 		video = &player;
 	}
-	else{
+	else {
 		//grabber.setDeviceID(1);
 		grabber.initGrabber(640, 480);
 		video = &grabber;
@@ -74,7 +74,7 @@ void ofApp::setup(){
 
 	//layers[1]->setup(std::make_shared<Maps::EsriSatelliteTileProvider>(),
 	layers[1]->setup(std::make_shared<Maps::StamenWatercolorTileProvider>(),
-			ofGetWidth(),
+		ofGetWidth(),
 		ofGetHeight());
 
 	layers[2]->setup(std::make_shared<Maps::GoogleAerialTileProvider>(),
@@ -93,23 +93,23 @@ void ofApp::setup(){
 }
 
 //--------------------------------------------------------------
-void ofApp::update(){
+void ofApp::update() {
 	video->update();
-	if (video->isFrameNew()){
+	if (video->isFrameNew()) {
 		aruco.detectBoards(video->getPixels());
 	}
 }
 
 //--------------------------------------------------------------
-void ofApp::draw(){
+void ofApp::draw() {
 	// map
-	/*map.draw();
+	/*map.draw();	   */
 
 	ofSetColor(255, 127, 255);
 
-	cout << map.getGeoLocationCenter() << endl;
+	cout << layers[2]->getCenter() << endl;
 
-	ofDrawBitmapStringHighlight(ofToString(map.getGeoLocationCenter()),
+	/*ofDrawBitmapStringHighlight(ofToString(map.getGeoLocationCenter()),
 		ofGetWidth() / 2,
 		ofGetHeight() / 2);
 
@@ -121,11 +121,11 @@ void ofApp::draw(){
 
 	ofDrawBitmapStringHighlight(ofToString(map.pointToGeolocation(mousePosition)),
 		mouseX + 16,
-		mouseY + 14);
+		mouseY + 14);*/
 
-	// video + markers
-	ofSetColor(255);   */
-	video->draw(200, 200);	 
+		// video + markers
+	ofSetColor(255);
+	video->draw(200, 200);
 	ofBackgroundGradient(ofColor(255), ofColor(0));
 
 	ofDrawBitmapString(ofToString(layers[0]->getCenter()), ofVec2f(15, 15));
@@ -135,7 +135,7 @@ void ofApp::draw(){
 
 	ofPushMatrix();
 
-	 layers[currentLayer]->draw(100, 400);
+	layers[currentLayer]->draw(100, 400);
 	//if (ofGetKeyPressed('0'))
 	//{
 	//	layers[0]->draw(0, 0);
@@ -157,26 +157,26 @@ void ofApp::draw(){
 	ofPopMatrix();
 	aruco.draw();
 
-	if (showMarkers){
-		for (int i = 0; i<aruco.getNumMarkers(); i++){
+	if (showMarkers) {
+		for (int i = 0; i<aruco.getNumMarkers(); i++) {
 			aruco.begin(i);
 			drawMarker(0.15, ofColor::white);
 			aruco.end();
 		}
 	}
 
-	
-	if (showBoard && aruco.getBoardProbability()>0.03){
-		for (int i = 0; i<aruco.getNumBoards(); i++){
+
+	if (showBoard && aruco.getBoardProbability()>0.03) {
+		for (int i = 0; i < aruco.getNumBoards(); i++) {
 			aruco.beginBoard(i);
 			drawMarker(.5, ofColor::red);
 			aruco.end();
 		}
 	}
 
-	
+
 	ofSetColor(255);
-	if (showBoardImage){
+	if (showBoardImage) {
 		board.draw(ofGetWidth() - 320, 0, 320, 320 * float(board.getHeight()) / float(board.getWidth()));
 	}
 	ofDrawBitmapString("markers detected: " + ofToString(aruco.getNumMarkers()), 20, 20);
@@ -190,12 +190,12 @@ void ofApp::draw(){
 }
 
 //--------------------------------------------------------------
-void ofApp::keyPressed(int key){
+void ofApp::keyPressed(int key) {
 	if (key == 'm') showMarkers = !showMarkers;
 	if (key == 'b') showBoard = !showBoard;
 	if (key == 'i') showBoardImage = !showBoardImage;
 	if (key == 'v') board.saveImage("boardimage.png");
-	if (key >= '0' && key <= '9'){
+	if (key >= '0' && key <= '9') {
 		// there's 1024 different markers
 		int markerID = key - '0';
 		aruco.getMarkerImage(markerID, 240, marker);
@@ -255,42 +255,42 @@ void ofApp::keyPressed(int key){
 }
 
 //--------------------------------------------------------------
-void ofApp::keyReleased(int key){
+void ofApp::keyReleased(int key) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::mouseMoved(int x, int y ){
+void ofApp::mouseMoved(int x, int y) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::mouseDragged(int x, int y, int button){
+void ofApp::mouseDragged(int x, int y, int button) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::mousePressed(int x, int y, int button){
+void ofApp::mousePressed(int x, int y, int button) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::mouseReleased(int x, int y, int button){
+void ofApp::mouseReleased(int x, int y, int button) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::windowResized(int w, int h){
+void ofApp::windowResized(int w, int h) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::gotMessage(ofMessage msg){
+void ofApp::gotMessage(ofMessage msg) {
 
 }
 
 //--------------------------------------------------------------
-void ofApp::dragEvent(ofDragInfo dragInfo){ 
+void ofApp::dragEvent(ofDragInfo dragInfo) {
 
 }
 std::string ofApp::Gd(int zoomLevel, double latitude, double longitude) {
