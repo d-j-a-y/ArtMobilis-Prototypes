@@ -45,6 +45,14 @@ angular.module('artmobilis', ['ionic', 'leaflet-directive', 'ngCordova', 'igTrun
             controller: 'ARController'
           }
         }
+      }).state('app.arimage', {
+        url: "/arimage",
+        views: {
+          'menuContent' :{
+            templateUrl: "templates/arimage.html",
+            controller: 'ARImageController'
+          }
+        }
       })
   .state('app.accueil', {
       url: '/accueil',
