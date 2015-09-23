@@ -15,129 +15,109 @@ angular.module('artmobilis').controller('ARImageController',
       LocationsService,
       InstructionsService
       ) {
-        $scope.video = null;
-        // this has to be done BEFORE webcam authorization
-        $scope.channel = {
-          videoHeight: 800,
-          videoWidth: 600,
-          video: null // Will reference the video element on success
-        };
-        $scope.video = $scope.channel.video;
+        // lets do some fun
+        var video = document.getElementById('webcam');
+        var canvas = document.getElementById('canvas');
+        try {
+            var attempts = 0;
+            var readyListener = function (event) {
+                findVideoSize();
+            };
+            var findVideoSize = function () {
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    video.removeEventListener('loadeddata', readyListener);
+                    onDimensionsReady(video.videoWidth, video.videoHeight);
+                } else {
+                    if (attempts < 10) {
+                        attempts++;
+                        setTimeout(findVideoSize, 200);
+                    } else {
+                        onDimensionsReady(640, 480);
+                    }
+                }
+            };
+            var onDimensionsReady = function (width, height) {
+                demo_app(width, height);
+                compatibility.requestAnimationFrame(tick);
+            };
 
-        // pause for a few milliseconds before accessing canvas
-        setTimeout(function() {
-            
-            $scope.infos = angular.element(document.getElementById('infos'));
-            $scope.canvas = angular.element(document.getElementById('canevas'));
-            console.log("canvas: "+$scope.canvas);
-            $scope.ctx = $scope.canvas[0].getContext("2d");
-            $scope.ctx.moveTo(0,0);
-            $scope.ctx.lineTo(200,100);
-            $scope.ctx.stroke(); 
-            console.log("context: "+$scope.ctx);
-    
-            $scope.detector = new AR.Detector();
+            video.addEventListener('loadeddata', readyListener);
 
-            // start animation loop
-            requestAnimationFrame($scope.tick);
-        }, 1000);
+            compatibility.getUserMedia({ video: true }, function (stream) {
+                try {
+                    video.src = compatibility.URL.createObjectURL(stream);
+                } catch (error) {
+                    video.src = stream;
+                }
+                setTimeout(function () {
+                    video.play();
+                    demo_app();
 
-    $scope.framecount = 0;
-    $scope.channel = {};
-    $scope.onError = function (err) {console.log("webcam onError");};
-    $scope.onStream = function (stream) {
-        console.log("webcam onStream, frame:" + $scope.framecount);
-    };
-    $scope.onSuccess = function () {
-        console.log("webcam onSuccess, frame:" + $scope.framecount);
-    };
-
-    $scope.tick = function() {
-        $scope.framecount++;
-        $scope.framez = $scope.framecount;
-
-        $scope.video = $scope.channel.video;
-         
-        if ($scope.video) {
-            $scope.infos = "video frame available, frame:" + $scope.framecount; 
-            //console.log("video frame available");
-            
-            if ($scope.video.width > 0) {
-                //console.log("video width" + $scope.video.width);
-                var videoData = getVideoData(0, 0, $scope.video.width, $scope.video.height);
-                $scope.ctx.putImageData(videoData, 0, 0);
-                $scope.imageData = $scope.ctx.getImageData(0, 0, $scope.canvas[0].width, $scope.canvas[0].height);
-                $scope.ctx.moveTo(0,0);
-                $scope.ctx.lineTo(200,100);
-                $scope.ctx.stroke(); 
-
-
-                $scope.markers = $scope.detector.detect($scope.imageData);
-                $scope.drawCorners($scope.markers);
-                $scope.drawId($scope.markers);
-
-            }
-         } else {
-            //$scope.infos = "video frame not available"; 
+                    compatibility.requestAnimationFrame(tick);
+                }, 500);
+            }, function (error) {
+                console.log("error gum");
+                //$('#canvas').hide();
+                //$('#log').hide();
+                //$('#no_rtc').html('<h4>WebRTC not available.</h4>');
+                //$('#no_rtc').show();
+            });
+        } catch (error) {
+                console.log("error a");
+            //$('#canvas').hide();
+            //$('#log').hide();
+            //$('#no_rtc').html('<h4>Something goes wrong...</h4>');
+            //$('#no_rtc').show();
         }
-        requestAnimationFrame($scope.tick);
-    }
-    var getVideoData = function getVideoData(x, y, w, h) {
-        var hiddenCanvas = document.createElement('canvas');
-        hiddenCanvas.width = $scope.video.width;
-        hiddenCanvas.height = $scope.video.height;
-        var ctx = hiddenCanvas.getContext('2d');
-        ctx.drawImage($scope.video, 0, 0, $scope.video.width, $scope.video.height);
-        return ctx.getImageData(x, y, w, h);
-    };
 
-    $scope.drawCorners = function(markers) {
-        var corners, corner, i, j;
+        //var stat = new profiler();
 
-        $scope.ctx.lineWidth = 3;
+        var gui, ctx, canvasWidth, canvasHeight;
+        var img_u8;
 
-        for (i = 0; i !== markers.length; ++i) {
-            corners = markers[i].corners;
+        function demo_app(videoWidth, videoHeight) {
+            canvasWidth = canvas.width;
+            canvasHeight = canvas.height;
+            ctx = canvas.getContext('2d');
 
-            $scope.ctx.strokeStyle = "red";
-            $scope.ctx.beginPath();
+            ctx.fillStyle = "rgb(0,255,0)";
+            ctx.strokeStyle = "rgb(0,255,0)";
 
-            for (j = 0; j !== corners.length; ++j) {
-                corner = corners[j];
-                $scope.ctx.moveTo(corner.x, corner.y);
-                corner = corners[(j + 1) % corners.length];
-                $scope.ctx.lineTo(corner.x, corner.y);
-            }
+            img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
 
-            $scope.ctx.stroke();
-            $scope.ctx.closePath();
-
-            $scope.ctx.strokeStyle = "green";
-            $scope.ctx.strokeRect(corners[0].x - 2, corners[0].y - 2, 4, 4);
+            //stat.add("grayscale");
         }
-    }
 
-    $scope.drawId = function(markers) {
-        var corners, corner, x, y, i, j;
+        function tick() {
+            compatibility.requestAnimationFrame(tick);
+            //stat.new_frame();
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                ctx.drawImage(video, 0, 0, 640, 480);
+                var imageData = ctx.getImageData(0, 0, 640, 480);
 
-        $scope.ctx.strokeStyle = "blue";
-        $scope.ctx.lineWidth = 1;
+                //stat.start("grayscale");
+                jsfeat.imgproc.grayscale(imageData.data, 640, 480, img_u8);
+                //stat.stop("grayscale");
 
-        for (i = 0; i !== markers.length; ++i) {
-            corners = markers[i].corners;
+                // render result back to canvas
+                var data_u32 = new Uint32Array(imageData.data.buffer);
+                var alpha = (0xff << 24);
+                var i = img_u8.cols * img_u8.rows, pix = 0;
+                while (--i >= 0) {
+                    pix = img_u8.data[i];
+                    data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
+                }
 
-            x = Infinity;
-            y = Infinity;
+                ctx.putImageData(imageData, 0, 0);
 
-            for (j = 0; j !== corners.length; ++j) {
-                corner = corners[j];
-
-                x = Math.min(x, corner.x);
-                y = Math.min(y, corner.y);
+                //$('#log').html(stat.log());
             }
-
-            $scope.ctx.strokeText(markers[i].id, x, y)
         }
-    }
+
+        //$(window).unload(function () {
+        //    video.pause();
+        //    video.src = null;
+        //});
+
 
     }]);
