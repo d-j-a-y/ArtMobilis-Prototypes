@@ -272,9 +272,6 @@ angular.module('artmobilis').controller('ARImageController',
                 }
 
                 // $('#log').html(stat.log());
-
-                timeproc.textContent = null;
-                //timeproc.textContent = stat.log2();
                 timeproc.innerHTML = stat.log();
             }
         }

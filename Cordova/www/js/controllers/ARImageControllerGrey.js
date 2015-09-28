@@ -110,9 +110,7 @@ angular.module('artmobilis').controller('ARImageController',
                 }
 
                 ctx.putImageData(imageData, 0, 0);
-
-                timeproc.textContent = null;
-                timeproc.textContent = stat.log2();
+                timeproc.innerHTML = stat.log();
             }
         }
 
