@@ -3,8 +3,8 @@
     <ion-nav-buttons side="left">
         <button menu-toggle="left" class="button button-icon icon ion-navicon"></button>
     </ion-nav-buttons>
- 
 
+    <!--  POSIT from aruco UI
     <ion-content data-tap-disabled="true">
         <video id="webcam" width="320" height="240" autoplay="true" style="display:none;"></video>
 
@@ -24,14 +24,14 @@
                 </div>
             </div>
         </div>
-        <div style="clear: both;"></div>        
+        <div style="clear: both;"></div>
         <div>
-        The time is : <span id="timeproc"></span><br>
+            The time is : <span id="timeproc"></span><br>
         </div>
-</ion-content>
+    </ion-content>
+    -->
 
-
-<!--  Orb&Grey UI
+    <!--  Orb&Grey
     <ion-content data-tap-disabled="true">
         <video id="webcam" width="640" height="480" style="display:none;"></video>
         <div style=" width:640px;height:480px;margin: 10px auto;">
@@ -46,4 +46,25 @@
         </div>
     </ion-content>
     -->
+
+    <!--  my new UI -->
+    <ion-content data-tap-disabled="true">
+        <video id="webcam" width="640" height="480" style="display:none;"></video>
+        <div style=" width:640px;height:480px;margin: 10px auto;">
+            <canvas id="canvas" width="640" height="480"></canvas>
+            <canvas id="container" style="width: 640px; height: 480px; float: left; border: solid 1px black; background: green;"></canvas>
+            <div id="no_rtc" class="alert alert-error" style="display:none;"></div>
+            <div id="log" class="alert alert-info"></div>
+        </div>
+        The time is : <span id="timeproc"></span><br>
+        <div>
+            Reference name:<input type="text" ng-model="refname" required>
+            <button class="button" ng-click="train_pattern();">Train</button>
+        </div>
+        <img id="trained0" src="img/trained/vsd1.jpg">
+        <img hidden id="trained1" src="img/trained/vsd1.jpg">
+        <img hidden id="trained2" src="img/trained/3Dtricart1.jpg">
+
+    </ion-content>
+
 </ion-view>
