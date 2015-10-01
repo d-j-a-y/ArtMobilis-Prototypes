@@ -1,7 +1,6 @@
 angular.module('artmobilis').controller('ARImageController',
   ['$scope',
     '$cordovaGeolocation',
-  //  '$cordovaFile',
     '$stateParams',
     '$ionicModal',
     '$ionicPopup',
@@ -10,7 +9,6 @@ angular.module('artmobilis').controller('ARImageController',
     function (
       $scope,
       $cordovaGeolocation,
-  //    $cordovaFile,
       $stateParams,
       $ionicModal,
       $ionicPopup,
@@ -20,7 +18,6 @@ angular.module('artmobilis').controller('ARImageController',
         // lets do some fun
         var video = document.getElementById('webcam');
         var canvas = document.getElementById('canvas');
-        var container = document.getElementById('container');
         var timeproc = document.getElementById('timeproc');
 
         try {
@@ -103,141 +100,81 @@ angular.module('artmobilis').controller('ARImageController',
             this.match_threshold = 48;
         }
 
-        /*        // Wait for Cordova to load
-                //
-                document.addEventListener("deviceready", onDeviceReady, false);
-        
-                // Cordova is ready
-                function onDeviceReady() {
-                    // filesystem
-                    //   console.log('cordova.file.dataDirectory : ' + $cordovaFile);
-                    $cordovaFile.listDir('.').then(function (entries) {
-                        console.log('listDir: ', entries);
-                    }, function (err) {
-                        console.error('listDir error: ', err);
-                    }); 
-                }
-        
-                setTimeout(function () {
-                    //example: list of www/ folder in cordova/ionic app.
-                    //        listDir(cordova.file.applicationDirectory);
-                    listDir($cordova.file.dataDirectory);
-                    listDir();
-                }, 500);
-                */
-
-        var trained_8u;
-
-        var load_trained_patterns2 = function (name) {
-            img = new Image();
-            img.onload = function () {
-                var contx = container.getContext('2d');
-                contx.drawImage(img, 0, 0, 600, 600);
-
-                // pourquoi le comportement est different de html5?
-                // ex: Prototypes/testshtml/imageRead/testimage.html  l'image est rescalee (testé sous chrome et firefox)
-                // ici l'image est croppée
-
-                var imageData = contx.getImageData(0, 0, 600, 600);
-                trained_8u = new jsfeat.matrix_t(600,600, jsfeat.U8_t | jsfeat.C1_t);
-                jsfeat.imgproc.grayscale(imageData.data,600,600, trained_8u);
-                trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimention (sinon pas de rescale et rien ne se passe)
-            }
-            img.src = name;
-        }
-
-        var load_trained_patterns = function (name) {
-
-            var img2 = document.getElementById(name);
-            var contx = container.getContext('2d');
-            contx.drawImage(img2, 0, 0, 600, 600);
-            var imageData = contx.getImageData(0, 0, 600, 600);
-
-            trained_8u = new jsfeat.matrix_t(600,600, jsfeat.U8_t | jsfeat.C1_t);
-            jsfeat.imgproc.grayscale(imageData.data, 600,600, trained_8u);
-            trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimention (sinon pas de rescale et rien ne se passe)
-        };
-
         $scope.train_pattern = function () {
-            trainpattern(img_u8);
-        };
+                var lev = 0, i = 0;
+                var sc = 1.0;
+                var max_pattern_size = 512;
+                var max_per_level = 300;
+                var sc_inc = Math.sqrt(2.0); // magic number ;)
+                var lev0_img = new jsfeat.matrix_t(img_u8.cols, img_u8.rows, jsfeat.U8_t | jsfeat.C1_t);
+                var lev_img = new jsfeat.matrix_t(img_u8.cols, img_u8.rows, jsfeat.U8_t | jsfeat.C1_t);
+                var new_width = 0, new_height = 0;
+                var lev_corners, lev_descr;
+                var corners_num = 0;
 
-        trainpattern = function (img) {
-            var lev = 0, i = 0;
-            var sc = 1.0;
-            var max_pattern_size = 512;
-            var max_per_level = 300;
-            var sc_inc = Math.sqrt(2.0); // magic number ;)
-            var lev0_img = new jsfeat.matrix_t(img.cols, img.rows, jsfeat.U8_t | jsfeat.C1_t);
-            var lev_img = new jsfeat.matrix_t(img.cols, img.rows, jsfeat.U8_t | jsfeat.C1_t);
-            var new_width = 0, new_height = 0;
-            var lev_corners, lev_descr;
-            var corners_num = 0;
+                var sc0 = Math.min(max_pattern_size / img_u8.cols, max_pattern_size / img_u8.rows);
+                new_width = (img_u8.cols * sc0) | 0;
+                new_height = (img_u8.rows * sc0) | 0;
 
-            var sc0 = Math.min(max_pattern_size / img.cols, max_pattern_size / img.rows);
-            new_width = (img.cols * sc0) | 0;
-            new_height = (img.rows * sc0) | 0;
+                jsfeat.imgproc.resample(img_u8, lev0_img, new_width, new_height);
 
-            //if (img.cols > new_width && img.height > new_height)
-                jsfeat.imgproc.resample(img, lev0_img, new_width, new_height);
+                // prepare preview
+                pattern_preview = new jsfeat.matrix_t(new_width >> 1, new_height >> 1, jsfeat.U8_t | jsfeat.C1_t);
+                jsfeat.imgproc.pyrdown(lev0_img, pattern_preview);
 
-            // prepare preview
-            pattern_preview = new jsfeat.matrix_t(new_width >> 1, new_height >> 1, jsfeat.U8_t | jsfeat.C1_t);
-            jsfeat.imgproc.pyrdown(lev0_img, pattern_preview);
+                for (lev = 0; lev < num_train_levels; ++lev) {
+                    pattern_corners[lev] = [];
+                    lev_corners = pattern_corners[lev];
 
-            for (lev = 0; lev < num_train_levels; ++lev) {
-                pattern_corners[lev] = [];
-                lev_corners = pattern_corners[lev];
+                    // preallocate corners array
+                    i = (new_width * new_height) >> lev;
+                    while (--i >= 0) {
+                        lev_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
+                    }
 
-                // preallocate corners array
-                i = (new_width * new_height) >> lev;
-                while (--i >= 0) {
-                    lev_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
+                    pattern_descriptors[lev] = new jsfeat.matrix_t(32, max_per_level, jsfeat.U8_t | jsfeat.C1_t);
                 }
 
-                pattern_descriptors[lev] = new jsfeat.matrix_t(32, max_per_level, jsfeat.U8_t | jsfeat.C1_t);
-            }
+                // do the first level
+                lev_corners = pattern_corners[0];
+                lev_descr = pattern_descriptors[0];
 
-            // do the first level
-            lev_corners = pattern_corners[0];
-            lev_descr = pattern_descriptors[0];
-
-            jsfeat.imgproc.gaussian_blur(lev0_img, lev_img, options.blur_size | 0); // this is more robust
-            corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
-            jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
-
-            console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
-
-            sc /= sc_inc;
-
-            // lets do multiple scale levels
-            // we can use Canvas context draw method for faster resize 
-            // but its nice to demonstrate that you can do everything with jsfeat
-            for (lev = 1; lev < num_train_levels; ++lev) {
-                lev_corners = pattern_corners[lev];
-                lev_descr = pattern_descriptors[lev];
-
-                new_width = (lev0_img.cols * sc) | 0;
-                new_height = (lev0_img.rows * sc) | 0;
-
-                jsfeat.imgproc.resample(lev0_img, lev_img, new_width, new_height);
-                jsfeat.imgproc.gaussian_blur(lev_img, lev_img, options.blur_size | 0);
+                jsfeat.imgproc.gaussian_blur(lev0_img, lev_img, options.blur_size | 0); // this is more robust
                 corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
                 jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
-
-                // fix the coordinates due to scale level
-                for (i = 0; i < corners_num; ++i) {
-                    lev_corners[i].x *= 1. / sc;
-                    lev_corners[i].y *= 1. / sc;
-                }
 
                 console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
 
                 sc /= sc_inc;
-            }
+
+                // lets do multiple scale levels
+                // we can use Canvas context draw method for faster resize 
+                // but its nice to demonstrate that you can do everything with jsfeat
+                for (lev = 1; lev < num_train_levels; ++lev) {
+                    lev_corners = pattern_corners[lev];
+                    lev_descr = pattern_descriptors[lev];
+
+                    new_width = (lev0_img.cols * sc) | 0;
+                    new_height = (lev0_img.rows * sc) | 0;
+
+                    jsfeat.imgproc.resample(lev0_img, lev_img, new_width, new_height);
+                    jsfeat.imgproc.gaussian_blur(lev_img, lev_img, options.blur_size | 0);
+                    corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
+                    jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
+
+                    // fix the coordinates due to scale level
+                    for (i = 0; i < corners_num; ++i) {
+                        lev_corners[i].x *= 1. / sc;
+                        lev_corners[i].y *= 1. / sc;
+                    }
+
+                    console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
+
+                    sc /= sc_inc;
+                }
 
             // now we want to save this
-        };
+            };
 
 
         function demo_app(videoWidth, videoHeight) {
@@ -283,10 +220,6 @@ angular.module('artmobilis').controller('ARImageController',
             stat.add("keypoints");
             stat.add("orb descriptors");
             stat.add("matching");
-
-            //load_trained_patterns2("http://localhost:4400/img/trained/vsd1.jpg");
-            //load_trained_patterns2("http://localhost:4400/img/trained/3Dtricart.jpg");
-            load_trained_patterns("trained1");
         }
 
         function tick() {
