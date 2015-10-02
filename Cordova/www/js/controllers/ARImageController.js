@@ -144,7 +144,7 @@ angular.module('artmobilis').controller('ARImageController',
                 trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimention (sinon pas de rescale et rien ne se passe)
             }
             img.src = name;
-        }
+        };
 
         var load_trained_patterns = function (name) {
 
