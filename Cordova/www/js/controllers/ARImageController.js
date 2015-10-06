@@ -22,6 +22,7 @@ angular.module('artmobilis').controller('ARImageController',
         var canvas = document.getElementById('canvas');
         var container = document.getElementById('container');
         var timeproc = document.getElementById('timeproc');
+        var matchingresult = document.getElementById('matchingresult');
 
         try {
             var attempts = 0;
@@ -95,6 +96,7 @@ angular.module('artmobilis').controller('ARImageController',
         var pattern_corners, pattern_descriptors, pattern_preview;
         var matches, homo3x3, match_mask;
         var num_train_levels = 4;
+        var maxCorners = 2000, maxMatches=2000;
 
         var demo_opt = function () {
             this.blur_size = 5;
@@ -127,35 +129,32 @@ angular.module('artmobilis').controller('ARImageController',
                 */
 
         var trained_8u;
+        var nb_trained = 0, current_pattern = -1;
+        var templateX = 400, templateY = 600;
 
         var load_trained_patterns2 = function (name) {
             img = new Image();
             img.onload = function () {
                 var contx = container.getContext('2d');
-                contx.drawImage(img, 0, 0, 600, 600);
+                contx.drawImage(img, 0, 0, templateX, templateY);
 
-                // pourquoi le comportement est different de html5?
-                // ex: Prototypes/testshtml/imageRead/testimage.html  l'image est rescalee (testé sous chrome et firefox)
-                // ici l'image est croppée
-
-                var imageData = contx.getImageData(0, 0, 600, 600);
-                trained_8u = new jsfeat.matrix_t(600,600, jsfeat.U8_t | jsfeat.C1_t);
-                jsfeat.imgproc.grayscale(imageData.data,600,600, trained_8u);
-                trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimention (sinon pas de rescale et rien ne se passe)
+                var imageData = contx.getImageData(0, 0, templateX, templateY);
+                trained_8u = new jsfeat.matrix_t(templateX, templateY, jsfeat.U8_t | jsfeat.C1_t);
+                jsfeat.imgproc.grayscale(imageData.data, templateX, templateY, trained_8u);
+                trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimension (sinon pas de rescale et rien ne se passe)
             }
             img.src = name;
         };
 
         var load_trained_patterns = function (name) {
-
             var img2 = document.getElementById(name);
             var contx = container.getContext('2d');
-            contx.drawImage(img2, 0, 0, 600, 600);
-            var imageData = contx.getImageData(0, 0, 600, 600);
+            contx.drawImage(img2, 0, 0, templateX, templateY);
+            var imageData = contx.getImageData(0, 0, templateX, templateY);
 
-            trained_8u = new jsfeat.matrix_t(600,600, jsfeat.U8_t | jsfeat.C1_t);
-            jsfeat.imgproc.grayscale(imageData.data, 600,600, trained_8u);
-            trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimention (sinon pas de rescale et rien ne se passe)
+            trained_8u = new jsfeat.matrix_t(templateX, templateY, jsfeat.U8_t | jsfeat.C1_t);
+            jsfeat.imgproc.grayscale(imageData.data, templateX, templateY, trained_8u);
+            trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimension (sinon pas de rescale et rien ne se passe)
         };
 
         $scope.train_pattern = function () {
@@ -178,16 +177,27 @@ angular.module('artmobilis').controller('ARImageController',
             new_width = (img.cols * sc0) | 0;
             new_height = (img.rows * sc0) | 0;
 
-            //if (img.cols > new_width && img.height > new_height)
-                jsfeat.imgproc.resample(img, lev0_img, new_width, new_height);
+            // alloc matches
+            matches[nb_trained] = [];
+            var i = maxMatches;
+            while (--i >= 0) {
+                matches[nb_trained][i] = new match_t();
+            }
+
+
+            // be carefull nothing done if size <512
+            jsfeat.imgproc.resample(img, lev0_img, new_width, new_height);
 
             // prepare preview
-            pattern_preview = new jsfeat.matrix_t(new_width >> 1, new_height >> 1, jsfeat.U8_t | jsfeat.C1_t);
-            jsfeat.imgproc.pyrdown(lev0_img, pattern_preview);
+            pattern_preview[nb_trained] = new jsfeat.matrix_t(new_width >> 1, new_height >> 1, jsfeat.U8_t | jsfeat.C1_t);
+            jsfeat.imgproc.pyrdown(lev0_img, pattern_preview[nb_trained]);
+
+            pattern_corners[nb_trained] = [];
+            pattern_descriptors[nb_trained] = [];
 
             for (lev = 0; lev < num_train_levels; ++lev) {
-                pattern_corners[lev] = [];
-                lev_corners = pattern_corners[lev];
+                pattern_corners[nb_trained][lev] = [];
+                lev_corners = pattern_corners[nb_trained][lev];
 
                 // preallocate corners array
                 i = (new_width * new_height) >> lev;
@@ -195,12 +205,12 @@ angular.module('artmobilis').controller('ARImageController',
                     lev_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
                 }
 
-                pattern_descriptors[lev] = new jsfeat.matrix_t(32, max_per_level, jsfeat.U8_t | jsfeat.C1_t);
+                pattern_descriptors[nb_trained][lev] = new jsfeat.matrix_t(32, max_per_level, jsfeat.U8_t | jsfeat.C1_t);
             }
 
             // do the first level
-            lev_corners = pattern_corners[0];
-            lev_descr = pattern_descriptors[0];
+            lev_corners = pattern_corners[nb_trained][0];
+            lev_descr = pattern_descriptors[nb_trained][0];
 
             jsfeat.imgproc.gaussian_blur(lev0_img, lev_img, options.blur_size | 0); // this is more robust
             corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
@@ -214,8 +224,8 @@ angular.module('artmobilis').controller('ARImageController',
             // we can use Canvas context draw method for faster resize 
             // but its nice to demonstrate that you can do everything with jsfeat
             for (lev = 1; lev < num_train_levels; ++lev) {
-                lev_corners = pattern_corners[lev];
-                lev_descr = pattern_descriptors[lev];
+                lev_corners = pattern_corners[nb_trained][lev];
+                lev_descr = pattern_descriptors[nb_trained][lev];
 
                 new_width = (lev0_img.cols * sc) | 0;
                 new_height = (lev0_img.rows * sc) | 0;
@@ -236,7 +246,7 @@ angular.module('artmobilis').controller('ARImageController',
                 sc /= sc_inc;
             }
 
-            // now we want to save this
+            nb_trained++;
         };
 
 
@@ -254,16 +264,16 @@ angular.module('artmobilis').controller('ARImageController',
             // we wll limit to 500 strongest points
             screen_descriptors = new jsfeat.matrix_t(32, 500, jsfeat.U8_t | jsfeat.C1_t);
             pattern_descriptors = [];
+            pattern_preview = [];
 
             screen_corners = [];
             pattern_corners = [];
             matches = [];
 
-            var i = 640 * 480;
-            while (--i >= 0) {
+            // var i = 640 * 480; tdcv that's far too much
+            var i = maxCorners; // 2000 corners maximum
+            while (--i >= 0) 
                 screen_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
-                matches[i] = new match_t();
-            }
 
             // transform matrix
             homo3x3 = new jsfeat.matrix_t(3, 3, jsfeat.F32C1_t);
@@ -286,7 +296,9 @@ angular.module('artmobilis').controller('ARImageController',
 
             //load_trained_patterns2("http://localhost:4400/img/trained/vsd1.jpg");
             //load_trained_patterns2("http://localhost:4400/img/trained/3Dtricart.jpg");
+            load_trained_patterns("trained0");
             load_trained_patterns("trained1");
+            load_trained_patterns("trained2");
         }
 
         function tick() {
@@ -320,20 +332,37 @@ angular.module('artmobilis').controller('ARImageController',
                 render_corners(screen_corners, num_corners, data_u32, 640);
 
                 // render pattern and matches
-                var num_matches = 0;
+                var num_matches = [];
                 var good_matches = 0;
-                if (pattern_preview) {
-                    render_mono_image(pattern_preview.data, data_u32, pattern_preview.cols, pattern_preview.rows, 640);
-                    stat.start("matching");
-                    num_matches = match_pattern();
-                    good_matches = find_transform(matches, num_matches);
-                    stat.stop("matching");
+
+                // search for the rigth pattern
+                stat.start("matching");
+                var id = 0;
+                var str ,found=false;
+                for (id = 0; id < nb_trained; ++id) {
+                    num_matches[id] = match_pattern(id);
+                    str += "<br>Id : " + id + " nbMatches : " + num_matches[id];
+                    if (num_matches[id] < 20 || found)
+                        continue;
+
+                    good_matches = find_transform(matches[id], num_matches[id], id);
+                    str += " nbGood : " + good_matches;
+                    if (good_matches > 8) {
+                        current_pattern = id;
+                        found = true;
+                    }
+                }
+                matchingresult.innerHTML = str;
+                stat.stop("matching");
+
+                if (pattern_preview[current_pattern]) {
+                    render_mono_image(pattern_preview[current_pattern].data, data_u32, pattern_preview[current_pattern].cols, pattern_preview[current_pattern].rows, 640);
                 }
 
                 ctx.putImageData(imageData, 0, 0);
 
-                if (num_matches) {
-                    render_matches(ctx, matches, num_matches);
+                if (num_matches[current_pattern]) { // last detected
+                    render_matches(ctx, matches[current_pattern], num_matches[current_pattern]);
                     if (good_matches > 8)
                         render_pattern_shape(ctx);
                 }
@@ -394,7 +423,7 @@ angular.module('artmobilis').controller('ARImageController',
         }
 
         // estimate homography transform between matched points
-        function find_transform(matches, count) {
+        function find_transform(matches, count, id) {
             // motion kernel
             var mm_kernel = new jsfeat.motion_model.homography2d();
             // ransac params
@@ -410,7 +439,7 @@ angular.module('artmobilis').controller('ARImageController',
             for (var i = 0; i < count; ++i) {
                 var m = matches[i];
                 var s_kp = screen_corners[m.screen_idx];
-                var p_kp = pattern_corners[m.pattern_lev][m.pattern_idx];
+                var p_kp = pattern_corners[id][m.pattern_lev][m.pattern_idx];
                 pattern_xy[i] = { "x": p_kp.x, "y": p_kp.y };
                 screen_xy[i] = { "x": s_kp.x, "y": s_kp.y };
             }
@@ -451,7 +480,7 @@ angular.module('artmobilis').controller('ARImageController',
         // naive brute-force matching.
         // each on screen point is compared to all pattern points
         // to find the closest match
-        function match_pattern() {
+        function match_pattern(id) {
             var q_cnt = screen_descriptors.rows;
             var query_du8 = screen_descriptors.data;
             var query_u32 = screen_descriptors.buffer.i32; // cast to integer buffer
@@ -466,7 +495,7 @@ angular.module('artmobilis').controller('ARImageController',
                 var best_lev = -1;
 
                 for (lev = 0; lev < num_train_levels; ++lev) {
-                    var lev_descr = pattern_descriptors[lev];
+                    var lev_descr = pattern_descriptors[id][lev];
                     var ld_cnt = lev_descr.rows;
                     var ld_i32 = lev_descr.buffer.i32; // cast to integer buffer
                     var ld_off = 0;
@@ -494,18 +523,18 @@ angular.module('artmobilis').controller('ARImageController',
 
                 // filter out by some threshold
                 if (best_dist < options.match_threshold) {
-                    matches[num_matches].screen_idx = qidx;
-                    matches[num_matches].pattern_lev = best_lev;
-                    matches[num_matches].pattern_idx = best_idx;
+                    matches [id][num_matches].screen_idx = qidx;
+                    matches[id][num_matches].pattern_lev = best_lev;
+                    matches[id][num_matches].pattern_idx = best_idx;
                     num_matches++;
                 }
                 //
 
                 /* filter using the ratio between 2 closest matches
                 if(best_dist < 0.8*best_dist2) {
-                    matches[num_matches].screen_idx = qidx;
-                    matches[num_matches].pattern_lev = best_lev;
-                    matches[num_matches].pattern_idx = best_idx;
+                    matches[id][num_matches].screen_idx = qidx;
+                    matches[id][num_matches].pattern_lev = best_lev;
+                    matches[id][num_matches].pattern_idx = best_idx;
                     num_matches++;
                 }
                 */
@@ -533,11 +562,12 @@ angular.module('artmobilis').controller('ARImageController',
         }
 
         function render_matches(ctx, matches, count) {
+            if (current_pattern == -1) return;
 
             for (var i = 0; i < count; ++i) {
                 var m = matches[i];
                 var s_kp = screen_corners[m.screen_idx];
-                var p_kp = pattern_corners[m.pattern_lev][m.pattern_idx];
+                var p_kp = pattern_corners[current_pattern][m.pattern_lev][m.pattern_idx];
                 if (match_mask.data[i]) {
                     ctx.strokeStyle = "rgb(0,255,0)";
                 } else {
