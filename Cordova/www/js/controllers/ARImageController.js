@@ -184,6 +184,10 @@ angular.module('artmobilis').controller('ARImageController',
                 matches[nb_trained][i] = new match_t();
             }
 
+            // transform matrix
+            homo3x3[nb_trained] = new jsfeat.matrix_t(3, 3, jsfeat.F32C1_t);
+            match_mask[nb_trained] = new jsfeat.matrix_t(500, 1, jsfeat.U8C1_t);
+
 
             // be carefull nothing done if size <512
             jsfeat.imgproc.resample(img, lev0_img, new_width, new_height);
@@ -276,8 +280,8 @@ angular.module('artmobilis').controller('ARImageController',
                 screen_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
 
             // transform matrix
-            homo3x3 = new jsfeat.matrix_t(3, 3, jsfeat.F32C1_t);
-            match_mask = new jsfeat.matrix_t(500, 1, jsfeat.U8C1_t);
+            homo3x3 = [];
+            match_mask = [];
 
             options = new demo_opt();
             /* gui = new dat.GUI();
@@ -363,7 +367,7 @@ angular.module('artmobilis').controller('ARImageController',
 
                 if (num_matches[current_pattern]) { // last detected
                     render_matches(ctx, matches[current_pattern], num_matches[current_pattern]);
-                    if (good_matches > 8)
+                    if (found)
                         render_pattern_shape(ctx);
                 }
 
@@ -447,13 +451,13 @@ angular.module('artmobilis').controller('ARImageController',
             // estimate motion
             var ok = false;
             ok = jsfeat.motion_estimator.ransac(ransac_param, mm_kernel,
-                                                pattern_xy, screen_xy, count, homo3x3, match_mask, 1000);
+                                                pattern_xy, screen_xy, count, homo3x3[id], match_mask[id], 1000);
 
             // extract good matches and re-estimate
             var good_cnt = 0;
             if (ok) {
                 for (var i = 0; i < count; ++i) {
-                    if (match_mask.data[i]) {
+                    if (match_mask[id].data[i]) {
                         pattern_xy[good_cnt].x = pattern_xy[i].x;
                         pattern_xy[good_cnt].y = pattern_xy[i].y;
                         screen_xy[good_cnt].x = screen_xy[i].x;
@@ -462,9 +466,9 @@ angular.module('artmobilis').controller('ARImageController',
                     }
                 }
                 // run kernel directly with inliers only
-                mm_kernel.run(pattern_xy, screen_xy, homo3x3, good_cnt);
+                mm_kernel.run(pattern_xy, screen_xy, homo3x3[id], good_cnt);
             } else {
-                jsfeat.matmath.identity_3x3(homo3x3, 1.0);
+                jsfeat.matmath.identity_3x3(homo3x3[id], 1.0);
             }
 
             return good_cnt;
@@ -568,7 +572,7 @@ angular.module('artmobilis').controller('ARImageController',
                 var m = matches[i];
                 var s_kp = screen_corners[m.screen_idx];
                 var p_kp = pattern_corners[current_pattern][m.pattern_lev][m.pattern_idx];
-                if (match_mask.data[i]) {
+                if (match_mask[current_pattern].data[i]) {
                     ctx.strokeStyle = "rgb(0,255,0)";
                 } else {
                     ctx.strokeStyle = "rgb(255,0,0)";
@@ -583,7 +587,7 @@ angular.module('artmobilis').controller('ARImageController',
 
         function render_pattern_shape(ctx) {
             // get the projected pattern corners
-            var shape_pts = tCorners(homo3x3.data, pattern_preview.cols * 2, pattern_preview.rows * 2);
+            var shape_pts = tCorners(homo3x3[current_pattern].data, pattern_preview[current_pattern].cols * 2, pattern_preview[current_pattern].rows * 2);
 
             ctx.strokeStyle = "rgb(0,255,0)";
             ctx.beginPath();
