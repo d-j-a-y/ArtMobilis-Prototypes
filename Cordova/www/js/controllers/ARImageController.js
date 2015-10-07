@@ -19,10 +19,15 @@ angular.module('artmobilis').controller('ARImageController',
       ) {
         // lets do some fun
         var video = document.getElementById('webcam');
-        var canvas = document.getElementById('canvas');
+        var canvas2d = document.getElementById('canvas2d');
+        var canvas3D = document.getElementById('canvas3d');
         var container = document.getElementById('container');
         var timeproc = document.getElementById('timeproc');
         var matchingresult = document.getElementById('matchingresult');
+
+        /////////////////////
+        // camera acqui
+        /////////////////////
 
         try {
             var attempts = 0;
@@ -91,12 +96,29 @@ angular.module('artmobilis').controller('ARImageController',
             return match_t;
         })();
 
+        // JSfeat
         var gui, options, ctx, canvasWidth, canvasHeight;
         var img_u8, img_u8_smooth, screen_corners, num_corners, screen_descriptors;
         var pattern_corners, pattern_descriptors, pattern_preview;
         var matches, homo3x3, match_mask;
         var num_train_levels = 4;
-        var maxCorners = 2000, maxMatches=2000;
+        var maxCorners = 2000, maxMatches = 2000;
+        var trained_8u;
+        var nb_trained = 0, current_pattern = -1;
+        var templateX = 400, templateY = 600;
+
+        // ARuco
+        var posit;
+        var renderer3d;
+        var scene1, scene2;
+        var camera1, camera2;
+        var plane, model1, model2, model3, texture;
+        var step = 0.0;
+        var modelSize = 35.0; //millimeters
+
+        // shared data
+        var shape_pts;
+
 
         var demo_opt = function () {
             this.blur_size = 5;
@@ -128,9 +150,20 @@ angular.module('artmobilis').controller('ARImageController',
                 }, 500);
                 */
 
-        var trained_8u;
-        var nb_trained = 0, current_pattern = -1;
-        var templateX = 400, templateY = 600;
+        /////////////////////
+        // Pattern Training
+        /////////////////////
+
+        var load_trained_patterns = function (name) {
+            var img2 = document.getElementById(name);
+            var contx = container.getContext('2d');
+            contx.drawImage(img2, 0, 0, templateX, templateY);
+            var imageData = contx.getImageData(0, 0, templateX, templateY);
+
+            trained_8u = new jsfeat.matrix_t(templateX, templateY, jsfeat.U8_t | jsfeat.C1_t);
+            jsfeat.imgproc.grayscale(imageData.data, templateX, templateY, trained_8u);
+            trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimension (sinon pas de rescale et rien ne se passe)
+        };
 
         var load_trained_patterns2 = function (name) {
             img = new Image();
@@ -144,17 +177,6 @@ angular.module('artmobilis').controller('ARImageController',
                 trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimension (sinon pas de rescale et rien ne se passe)
             }
             img.src = name;
-        };
-
-        var load_trained_patterns = function (name) {
-            var img2 = document.getElementById(name);
-            var contx = container.getContext('2d');
-            contx.drawImage(img2, 0, 0, templateX, templateY);
-            var imageData = contx.getImageData(0, 0, templateX, templateY);
-
-            trained_8u = new jsfeat.matrix_t(templateX, templateY, jsfeat.U8_t | jsfeat.C1_t);
-            jsfeat.imgproc.grayscale(imageData.data, templateX, templateY, trained_8u);
-            trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimension (sinon pas de rescale et rien ne se passe)
         };
 
         $scope.train_pattern = function () {
@@ -187,7 +209,6 @@ angular.module('artmobilis').controller('ARImageController',
             // transform matrix
             homo3x3[nb_trained] = new jsfeat.matrix_t(3, 3, jsfeat.F32C1_t);
             match_mask[nb_trained] = new jsfeat.matrix_t(500, 1, jsfeat.U8C1_t);
-
 
             // be carefull nothing done if size <512
             jsfeat.imgproc.resample(img, lev0_img, new_width, new_height);
@@ -254,38 +275,50 @@ angular.module('artmobilis').controller('ARImageController',
         };
 
 
+        /////////////////////
+        // Demo initialisation
+        /////////////////////
+
         function demo_app(videoWidth, videoHeight) {
-            canvasWidth = canvas.width;
-            canvasHeight = canvas.height;
-            ctx = canvas.getContext('2d');
+            canvasWidth = canvas2d.width;
+            canvasHeight = canvas2d.height;
+            ctx = canvas2d.getContext('2d');
 
             ctx.fillStyle = "rgb(0,255,0)";
             ctx.strokeStyle = "rgb(0,255,0)";
 
+            // JSfeat Orb detection+matching part
             img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
-            // after blur
-            img_u8_smooth = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
-            // we wll limit to 500 strongest points
+            img_u8_smooth = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);            // after blur
+
+            // we will limit to 500 strongest points
             screen_descriptors = new jsfeat.matrix_t(32, 500, jsfeat.U8_t | jsfeat.C1_t);
+
+            // recorded detection results for each pattern
             pattern_descriptors = [];
             pattern_preview = [];
-
             screen_corners = [];
             pattern_corners = [];
             matches = [];
-
-            // var i = 640 * 480; tdcv that's far too much
-            var i = maxCorners; // 2000 corners maximum
-            while (--i >= 0) 
-                screen_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
 
             // transform matrix
             homo3x3 = [];
             match_mask = [];
 
+            // live displayed corners
+            // var i = 640 * 480; tdcv that's far too much
+            var i = maxCorners; // 2000 corners maximum
+            while (--i >= 0)
+                screen_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
+
+            // Aruco part
+            posit = new POS.Posit(modelSize, canvas2d.width);
+
+            createRenderers();
+            createScenes();
+
             options = new demo_opt();
             /* gui = new dat.GUI();
- 
              gui.add(options, "blur_size", 3, 9).step(1);
              gui.add(options, "lap_thres", 1, 100);
              gui.add(options, "eigen_thres", 1, 100);
@@ -297,6 +330,9 @@ angular.module('artmobilis').controller('ARImageController',
             stat.add("keypoints");
             stat.add("orb descriptors");
             stat.add("matching");
+            stat.add("Posit");
+            stat.add("update");
+
 
             //load_trained_patterns2("http://localhost:4400/img/trained/vsd1.jpg");
             //load_trained_patterns2("http://localhost:4400/img/trained/3Dtricart.jpg");
@@ -304,6 +340,10 @@ angular.module('artmobilis').controller('ARImageController',
             load_trained_patterns("trained1");
             load_trained_patterns("trained2");
         }
+
+        /////////////////////
+        // video live Processing
+        /////////////////////
 
         function tick() {
             compatibility.requestAnimationFrame(tick);
@@ -342,7 +382,7 @@ angular.module('artmobilis').controller('ARImageController',
                 // search for the rigth pattern
                 stat.start("matching");
                 var id = 0;
-                var str ,found=false;
+                var str, found = false;
                 for (id = 0; id < nb_trained; ++id) {
                     num_matches[id] = match_pattern(id);
                     str += "<br>Id : " + id + " nbMatches : " + num_matches[id];
@@ -359,6 +399,7 @@ angular.module('artmobilis').controller('ARImageController',
                 matchingresult.innerHTML = str;
                 stat.stop("matching");
 
+                // display last detected pattern
                 if (pattern_preview[current_pattern]) {
                     render_mono_image(pattern_preview[current_pattern].data, data_u32, pattern_preview[current_pattern].cols, pattern_preview[current_pattern].rows, 640);
                 }
@@ -367,8 +408,13 @@ angular.module('artmobilis').controller('ARImageController',
 
                 if (num_matches[current_pattern]) { // last detected
                     render_matches(ctx, matches[current_pattern], num_matches[current_pattern]);
-                    if (found)
+                    if (found) {
                         render_pattern_shape(ctx);
+                        updateScenes(shape_pts);
+                        render();
+                    }
+                    else
+                        renderer3d.clear();
                 }
 
                 // $('#log').html(stat.log());
@@ -376,7 +422,182 @@ angular.module('artmobilis').controller('ARImageController',
             }
         }
 
-        // UTILITIES
+        /////////////////////
+        // 3D Pose and rendering
+        /////////////////////
+
+        function createRenderers() {
+            renderer3d = new THREE.WebGLRenderer({ canvas: canvas3D, alpha: true });
+            renderer3d.setClearColor(0xffffff, 0);
+            renderer3d.setSize(canvas2d.width, canvas2d.height);
+
+            //on ne peut que dans canvas ou aussi dans video
+
+            scene1 = new THREE.Scene();
+            camera1 = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5);
+            scene1.add(camera1);
+
+            scene2 = new THREE.Scene();
+            camera2 = new THREE.PerspectiveCamera(40, canvas2d.width / canvas2d.height, 1, 1000);
+            scene2.add(camera2);
+        };
+
+        function render() {
+            renderer3d.autoClear = false;
+            renderer3d.clear();
+            //renderer3d.render(scene1, camera1);
+            renderer3d.render(scene2, camera2);
+        };
+
+        function createScenes() {
+            plane = createPlane();
+            scene2.add(plane);
+
+            texture = createTexture();
+            scene1.add(texture);
+
+            model1 = createModel1();
+            model2 = createModel2();
+            model3 = createModel3();
+            scene2.add(model1);
+            scene2.add(model2);
+            scene2.add(model3);
+        };
+
+        function createPlane() {
+            var object = new THREE.Object3D(),
+                geometry = new THREE.PlaneGeometry(1.0, 1.0, 0.0),
+                material = new THREE.MeshNormalMaterial({ transparent: true, opacity: 0.5 }),
+                mesh = new THREE.Mesh(geometry, material);
+
+            object.add(mesh);
+
+            return object;
+        };
+
+        function createTexture() {
+            var texture = new THREE.Texture(video),
+                object = new THREE.Object3D(),
+                geometry = new THREE.PlaneGeometry(1.0, 1.0, 0.0),
+                material = new THREE.MeshBasicMaterial({ map: texture, depthTest: false, depthWrite: false }),
+                mesh = new THREE.Mesh(geometry, material);
+
+            object.position.z = -1;
+
+            object.add(mesh);
+
+            return object;
+        };
+
+        function createModel1() {
+            var object = new THREE.Object3D();
+            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
+            var texture = THREE.ImageUtils.loadTexture("img/casa.jpg");
+            var material = new THREE.MeshBasicMaterial({ map: texture });
+            var mesh = new THREE.Mesh(geometry, material);
+
+            object.add(mesh);
+
+            return object;
+        };
+
+        function createModel2() {
+            var object = new THREE.Object3D();
+            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
+            var texture = THREE.ImageUtils.loadTexture("img/3DVTech.jpg");
+            var material = new THREE.MeshBasicMaterial({ map: texture });
+            var mesh = new THREE.Mesh(geometry, material);
+
+            object.add(mesh);
+
+            return object;
+        };
+
+
+        function createModel3() {
+            var object = new THREE.Object3D();
+            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
+            var texture = THREE.ImageUtils.loadTexture("img/ARTmobilis.jpg");
+            var material = new THREE.MeshBasicMaterial({ map: texture });
+            var mesh = new THREE.Mesh(geometry, material);
+
+            object.add(mesh);
+
+            return object;
+        };
+
+        function updateScenes(corners) {
+            var corners, corner, pose, i;
+
+            for (i = 0; i < corners.length; ++i) {
+                corner = corners[i];
+                corner.x = corner.x - (canvas2d.width / 2);
+                corner.y = (canvas2d.height / 2) - corner.y;
+            }
+
+            stat.start("Posit");
+            pose = posit.pose(corners);
+            stat.stop("Posit");
+
+            stat.start("update");
+            updateObject(plane, pose.bestRotation, pose.bestTranslation);
+            updateObject(model1, pose.bestRotation, pose.bestTranslation);
+            updateObject(model2, pose.bestRotation, pose.bestTranslation);
+            updateObject(model3, pose.bestRotation, pose.bestTranslation);
+            updatePose("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
+            stat.stop("update");
+
+            //plane.visible = false;
+            model1.visible = (current_pattern === 0);
+            model2.visible = (current_pattern === 1);
+            model3.visible = (current_pattern === 2);
+
+            step += 0.025;
+            model1.rotation.y -= step;
+            model2.rotation.y -= step;
+            model3.rotation.y -= step;
+
+            texture.children[0].material.map.needsUpdate = true;
+        };
+
+        function updateObject(object, rotation, translation) {
+            object.scale.x = modelSize;
+            object.scale.y = modelSize;
+            object.scale.z = modelSize;
+
+            object.rotation.x = -Math.asin(-rotation[1][2]);
+            object.rotation.y = -Math.atan2(rotation[0][2], rotation[2][2]);
+            object.rotation.z = Math.atan2(rotation[1][0], rotation[1][1]);
+
+            object.position.x = translation[0];
+            object.position.y = translation[1];
+            object.position.z = -translation[2];
+        };
+
+        function updatePose(id, error, rotation, translation) {
+            var yaw = -Math.atan2(rotation[0][2], rotation[2][2]);
+            var pitch = -Math.asin(-rotation[1][2]);
+            var roll = Math.atan2(rotation[1][0], rotation[1][1]);
+
+            var d = document.getElementById(id);
+            d.innerHTML = " error: " + error
+                        + "<br/>"
+                        + " x: " + (translation[0] | 0)
+                        + " y: " + (translation[1] | 0)
+                        + " z: " + (translation[2] | 0)
+                        + "<br/>"
+                        + " yaw: " + Math.round(-yaw * 180.0 / Math.PI)
+                        + " pitch: " + Math.round(-pitch * 180.0 / Math.PI)
+                        + " roll: " + Math.round(roll * 180.0 / Math.PI);
+        };
+
+
+
+
+
+        /////////////////////
+        // Point detection utilities
+        /////////////////////
 
         function detect_keypoints(img, corners, max_allowed) {
             // detect features
@@ -527,7 +748,7 @@ angular.module('artmobilis').controller('ARImageController',
 
                 // filter out by some threshold
                 if (best_dist < options.match_threshold) {
-                    matches [id][num_matches].screen_idx = qidx;
+                    matches[id][num_matches].screen_idx = qidx;
                     matches[id][num_matches].pattern_lev = best_lev;
                     matches[id][num_matches].pattern_idx = best_idx;
                     num_matches++;
@@ -565,6 +786,10 @@ angular.module('artmobilis').controller('ARImageController',
             return pt;
         }
 
+        /////////////////////
+        // Drawers
+        /////////////////////
+
         function render_matches(ctx, matches, count) {
             if (current_pattern == -1) return;
 
@@ -587,7 +812,7 @@ angular.module('artmobilis').controller('ARImageController',
 
         function render_pattern_shape(ctx) {
             // get the projected pattern corners
-            var shape_pts = tCorners(homo3x3[current_pattern].data, pattern_preview[current_pattern].cols * 2, pattern_preview[current_pattern].rows * 2);
+            shape_pts = tCorners(homo3x3[current_pattern].data, pattern_preview[current_pattern].cols * 2, pattern_preview[current_pattern].rows * 2);
 
             ctx.strokeStyle = "rgb(0,255,0)";
             ctx.beginPath();

@@ -241,3 +241,12 @@ body {
     width: 240px;
   	box-shadow: 0 3px 14px rgba(0,0,0,0.9);
 }
+
+.overlapcanvas{
+	width:640; 
+	height:480;
+	position: absolute;
+    float: left;
+	top: 0px;
+	left: 0px;
+}
