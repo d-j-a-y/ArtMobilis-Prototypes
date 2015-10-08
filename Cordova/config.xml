@@ -122,4 +122,8 @@
   <vs:plugin name="cordova-plugin-geolocation" version="1.0.1" xmlns:vs="http://schemas.microsoft.com/appx/2014/htmlapps" />
   <vs:plugin name="cordova-plugin-media" version="1.0.1" xmlns:vs="http://schemas.microsoft.com/appx/2014/htmlapps" />
   <vs:plugin name="cordova-plugin-splashscreen" version="2.1.0" xmlns:vs="http://schemas.microsoft.com/appx/2014/htmlapps" />
+  <vs:plugin name="cordova-plugin-whitelist" version="1.0.0" xmlns:vs="http://schemas.microsoft.com/appx/2014/htmlapps" />
+  <vs:plugin name="cordova-plugin-device-orientation" version="1.0.1" xmlns:vs="http://schemas.microsoft.com/appx/2014/htmlapps" />
+  <vs:plugin name="cordova-plugin-file" version="3.0.0" xmlns:vs="http://schemas.microsoft.com/appx/2014/htmlapps" />
+  <vs:plugin name="cordova-plugin-crosswalk-webview" version="" xmlns:vs="http://schemas.microsoft.com/appx/2014/htmlapps" />
 </widget>
