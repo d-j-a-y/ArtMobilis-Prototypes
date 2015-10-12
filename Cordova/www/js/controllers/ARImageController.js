@@ -10,7 +10,6 @@ angular.module('artmobilis').controller('ARImageController',
     function (
       $scope,
       $cordovaGeolocation,
-  //    $cordovaFile,
       $stateParams,
       $ionicModal,
       $ionicPopup,
@@ -26,7 +25,7 @@ angular.module('artmobilis').controller('ARImageController',
         var matchingresult = document.getElementById('matchingresult');
 
         /////////////////////
-        // camera acqui
+        // camera acquisition
         /////////////////////
 
         try {
@@ -65,22 +64,16 @@ angular.module('artmobilis').controller('ARImageController',
                 }, 500);
             }, function (error) {
                 console.log("error gum");
-                //  $('#canvas').hide();
-                //  $('#log').hide();
-                //  $('#no_rtc').html('<h4>WebRTC not available.</h4>');
-                //  $('#no_rtc').show();
             });
         } catch (error) {
             console.log("error a");
-            // $('#canvas').hide();
-            // $('#log').hide();
-            // $('#no_rtc').html('<h4>Something goes wrong...</h4>');
-            // $('#no_rtc').show();
         }
 
-        var stat = new profiler();
+        /////////////////////
+        // global data
+        /////////////////////
 
-        // our point match structure
+        // point match structure
         var match_t = (function () {
             function match_t(screen_idx, pattern_lev, pattern_idx, distance) {
                 if (typeof screen_idx === "undefined") { screen_idx = 0; }
@@ -119,6 +112,7 @@ angular.module('artmobilis').controller('ARImageController',
         // shared data
         var shape_pts;
 
+        var stat = new profiler();
 
         var demo_opt = function () {
             this.blur_size = 5;
@@ -127,476 +121,8 @@ angular.module('artmobilis').controller('ARImageController',
             this.match_threshold = 48;
         }
 
-        /*        // Wait for Cordova to load
-                //
-                document.addEventListener("deviceready", onDeviceReady, false);
-        
-                // Cordova is ready
-                function onDeviceReady() {
-                    // filesystem
-                    //   console.log('cordova.file.dataDirectory : ' + $cordovaFile);
-                    $cordovaFile.listDir('.').then(function (entries) {
-                        console.log('listDir: ', entries);
-                    }, function (err) {
-                        console.error('listDir error: ', err);
-                    }); 
-                }
-        
-                setTimeout(function () {
-                    //example: list of www/ folder in cordova/ionic app.
-                    //        listDir(cordova.file.applicationDirectory);
-                    listDir($cordova.file.dataDirectory);
-                    listDir();
-                }, 500);
-                */
-
         /////////////////////
-        // Pattern Training
-        /////////////////////
-
-        var load_trained_patterns = function (name) {
-            var img2 = document.getElementById(name);
-            var contx = container.getContext('2d');
-            contx.drawImage(img2, 0, 0, templateX, templateY);
-            var imageData = contx.getImageData(0, 0, templateX, templateY);
-
-            trained_8u = new jsfeat.matrix_t(templateX, templateY, jsfeat.U8_t | jsfeat.C1_t);
-            jsfeat.imgproc.grayscale(imageData.data, templateX, templateY, trained_8u);
-            trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimension (sinon pas de rescale et rien ne se passe)
-        };
-
-        var load_trained_patterns2 = function (name) {
-            img = new Image();
-            img.onload = function () {
-                var contx = container.getContext('2d');
-                contx.drawImage(img, 0, 0, templateX, templateY);
-
-                var imageData = contx.getImageData(0, 0, templateX, templateY);
-                trained_8u = new jsfeat.matrix_t(templateX, templateY, jsfeat.U8_t | jsfeat.C1_t);
-                jsfeat.imgproc.grayscale(imageData.data, templateX, templateY, trained_8u);
-                trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimension (sinon pas de rescale et rien ne se passe)
-            }
-            img.src = name;
-        };
-
-        $scope.train_pattern = function () {
-            trainpattern(img_u8);
-        };
-
-        trainpattern = function (img) {
-            var lev = 0, i = 0;
-            var sc = 1.0;
-            var max_pattern_size = 512;
-            var max_per_level = 300;
-            var sc_inc = Math.sqrt(2.0); // magic number ;)
-            var lev0_img = new jsfeat.matrix_t(img.cols, img.rows, jsfeat.U8_t | jsfeat.C1_t);
-            var lev_img = new jsfeat.matrix_t(img.cols, img.rows, jsfeat.U8_t | jsfeat.C1_t);
-            var new_width = 0, new_height = 0;
-            var lev_corners, lev_descr;
-            var corners_num = 0;
-
-            var sc0 = Math.min(max_pattern_size / img.cols, max_pattern_size / img.rows);
-            new_width = (img.cols * sc0) | 0;
-            new_height = (img.rows * sc0) | 0;
-
-            // alloc matches
-            matches[nb_trained] = [];
-            var i = maxMatches;
-            while (--i >= 0) {
-                matches[nb_trained][i] = new match_t();
-            }
-
-            // transform matrix
-            homo3x3[nb_trained] = new jsfeat.matrix_t(3, 3, jsfeat.F32C1_t);
-            match_mask[nb_trained] = new jsfeat.matrix_t(500, 1, jsfeat.U8C1_t);
-
-            // be carefull nothing done if size <512
-            jsfeat.imgproc.resample(img, lev0_img, new_width, new_height);
-
-            // prepare preview
-            pattern_preview[nb_trained] = new jsfeat.matrix_t(new_width >> 1, new_height >> 1, jsfeat.U8_t | jsfeat.C1_t);
-            jsfeat.imgproc.pyrdown(lev0_img, pattern_preview[nb_trained]);
-
-            pattern_corners[nb_trained] = [];
-            pattern_descriptors[nb_trained] = [];
-
-            for (lev = 0; lev < num_train_levels; ++lev) {
-                pattern_corners[nb_trained][lev] = [];
-                lev_corners = pattern_corners[nb_trained][lev];
-
-                // preallocate corners array
-                i = (new_width * new_height) >> lev;
-                while (--i >= 0) {
-                    lev_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
-                }
-
-                pattern_descriptors[nb_trained][lev] = new jsfeat.matrix_t(32, max_per_level, jsfeat.U8_t | jsfeat.C1_t);
-            }
-
-            // do the first level
-            lev_corners = pattern_corners[nb_trained][0];
-            lev_descr = pattern_descriptors[nb_trained][0];
-
-            jsfeat.imgproc.gaussian_blur(lev0_img, lev_img, options.blur_size | 0); // this is more robust
-            corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
-            jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
-
-            console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
-
-            sc /= sc_inc;
-
-            // lets do multiple scale levels
-            // we can use Canvas context draw method for faster resize 
-            // but its nice to demonstrate that you can do everything with jsfeat
-            for (lev = 1; lev < num_train_levels; ++lev) {
-                lev_corners = pattern_corners[nb_trained][lev];
-                lev_descr = pattern_descriptors[nb_trained][lev];
-
-                new_width = (lev0_img.cols * sc) | 0;
-                new_height = (lev0_img.rows * sc) | 0;
-
-                jsfeat.imgproc.resample(lev0_img, lev_img, new_width, new_height);
-                jsfeat.imgproc.gaussian_blur(lev_img, lev_img, options.blur_size | 0);
-                corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
-                jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
-
-                // fix the coordinates due to scale level
-                for (i = 0; i < corners_num; ++i) {
-                    lev_corners[i].x *= 1. / sc;
-                    lev_corners[i].y *= 1. / sc;
-                }
-
-                console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
-
-                sc /= sc_inc;
-            }
-
-            nb_trained++;
-        };
-
-
-        /////////////////////
-        // Demo initialisation
-        /////////////////////
-
-        function demo_app(videoWidth, videoHeight) {
-            canvasWidth = canvas2d.width;
-            canvasHeight = canvas2d.height;
-            ctx = canvas2d.getContext('2d');
-
-            ctx.fillStyle = "rgb(0,255,0)";
-            ctx.strokeStyle = "rgb(0,255,0)";
-
-            // JSfeat Orb detection+matching part
-            img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
-            img_u8_smooth = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);            // after blur
-
-            // we will limit to 500 strongest points
-            screen_descriptors = new jsfeat.matrix_t(32, 500, jsfeat.U8_t | jsfeat.C1_t);
-
-            // recorded detection results for each pattern
-            pattern_descriptors = [];
-            pattern_preview = [];
-            screen_corners = [];
-            pattern_corners = [];
-            matches = [];
-
-            // transform matrix
-            homo3x3 = [];
-            match_mask = [];
-
-            // live displayed corners
-            // var i = 640 * 480; tdcv that's far too much
-            var i = maxCorners; // 2000 corners maximum
-            while (--i >= 0)
-                screen_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
-
-            // Aruco part
-            posit = new POS.Posit(modelSize, canvas2d.width);
-
-            createRenderers();
-            createScenes();
-
-            options = new demo_opt();
-            /* gui = new dat.GUI();
-             gui.add(options, "blur_size", 3, 9).step(1);
-             gui.add(options, "lap_thres", 1, 100);
-             gui.add(options, "eigen_thres", 1, 100);
-             gui.add(options, "match_threshold", 16, 128);
-             gui.add(options, "train_pattern");*/
-
-            stat.add("grayscale");
-            stat.add("gauss blur");
-            stat.add("keypoints");
-            stat.add("orb descriptors");
-            stat.add("matching");
-            stat.add("Posit");
-            stat.add("update");
-
-
-            //load_trained_patterns2("http://localhost:4400/img/trained/vsd1.jpg");
-            //load_trained_patterns2("http://localhost:4400/img/trained/3Dtricart.jpg");
-            load_trained_patterns("trained0");
-            load_trained_patterns("trained1");
-            load_trained_patterns("trained2");
-        }
-
-        /////////////////////
-        // video live Processing
-        /////////////////////
-
-        function tick() {
-            compatibility.requestAnimationFrame(tick);
-            stat.new_frame();
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                ctx.drawImage(video, 0, 0, 640, 480);
-                var imageData = ctx.getImageData(0, 0, 640, 480);
-
-                stat.start("grayscale");
-                jsfeat.imgproc.grayscale(imageData.data, 640, 480, img_u8);
-                stat.stop("grayscale");
-
-                stat.start("gauss blur");
-                jsfeat.imgproc.gaussian_blur(img_u8, img_u8_smooth, options.blur_size | 0);
-                stat.stop("gauss blur");
-
-                jsfeat.yape06.laplacian_threshold = options.lap_thres | 0;
-                jsfeat.yape06.min_eigen_value_threshold = options.eigen_thres | 0;
-
-                stat.start("keypoints");
-                num_corners = detect_keypoints(img_u8_smooth, screen_corners, 500);
-                stat.stop("keypoints");
-
-                stat.start("orb descriptors");
-                jsfeat.orb.describe(img_u8_smooth, screen_corners, num_corners, screen_descriptors);
-                stat.stop("orb descriptors");
-
-                // render result back to canvas
-                var data_u32 = new Uint32Array(imageData.data.buffer);
-                render_corners(screen_corners, num_corners, data_u32, 640);
-
-                // render pattern and matches
-                var num_matches = [];
-                var good_matches = 0;
-
-                // search for the rigth pattern
-                stat.start("matching");
-                var id = 0;
-                var str, found = false;
-                for (id = 0; id < nb_trained; ++id) {
-                    num_matches[id] = match_pattern(id);
-                    str += "<br>Id : " + id + " nbMatches : " + num_matches[id];
-                    if (num_matches[id] < 20 || found)
-                        continue;
-
-                    good_matches = find_transform(matches[id], num_matches[id], id);
-                    str += " nbGood : " + good_matches;
-                    if (good_matches > 8) {
-                        current_pattern = id;
-                        found = true;
-                    }
-                }
-                matchingresult.innerHTML = str;
-                stat.stop("matching");
-
-                // display last detected pattern
-                if (pattern_preview[current_pattern]) {
-                    render_mono_image(pattern_preview[current_pattern].data, data_u32, pattern_preview[current_pattern].cols, pattern_preview[current_pattern].rows, 640);
-                }
-
-                ctx.putImageData(imageData, 0, 0);
-
-                if (num_matches[current_pattern]) { // last detected
-                    render_matches(ctx, matches[current_pattern], num_matches[current_pattern]);
-                    if (found) {
-                        render_pattern_shape(ctx);
-                        updateScenes(shape_pts);
-                        render();
-                    }
-                    else
-                        renderer3d.clear();
-                }
-
-                // $('#log').html(stat.log());
-                timeproc.innerHTML = stat.log();
-            }
-        }
-
-        /////////////////////
-        // 3D Pose and rendering
-        /////////////////////
-
-        function createRenderers() {
-            renderer3d = new THREE.WebGLRenderer({ canvas: canvas3D, alpha: true });
-            renderer3d.setClearColor(0xffffff, 0);
-            renderer3d.setSize(canvas2d.width, canvas2d.height);
-
-            //on ne peut que dans canvas ou aussi dans video
-
-            scene1 = new THREE.Scene();
-            camera1 = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5);
-            scene1.add(camera1);
-
-            scene2 = new THREE.Scene();
-            camera2 = new THREE.PerspectiveCamera(40, canvas2d.width / canvas2d.height, 1, 1000);
-            scene2.add(camera2);
-        };
-
-        function render() {
-            renderer3d.autoClear = false;
-            renderer3d.clear();
-            //renderer3d.render(scene1, camera1);
-            renderer3d.render(scene2, camera2);
-        };
-
-        function createScenes() {
-            plane = createPlane();
-            scene2.add(plane);
-
-            texture = createTexture();
-            scene1.add(texture);
-
-            model1 = createModel1();
-            model2 = createModel2();
-            model3 = createModel3();
-            scene2.add(model1);
-            scene2.add(model2);
-            scene2.add(model3);
-        };
-
-        function createPlane() {
-            var object = new THREE.Object3D(),
-                geometry = new THREE.PlaneGeometry(1.0, 1.0, 0.0),
-                material = new THREE.MeshNormalMaterial({ transparent: true, opacity: 0.5 }),
-                mesh = new THREE.Mesh(geometry, material);
-
-            object.add(mesh);
-
-            return object;
-        };
-
-        function createTexture() {
-            var texture = new THREE.Texture(video),
-                object = new THREE.Object3D(),
-                geometry = new THREE.PlaneGeometry(1.0, 1.0, 0.0),
-                material = new THREE.MeshBasicMaterial({ map: texture, depthTest: false, depthWrite: false }),
-                mesh = new THREE.Mesh(geometry, material);
-
-            object.position.z = -1;
-
-            object.add(mesh);
-
-            return object;
-        };
-
-        function createModel1() {
-            var object = new THREE.Object3D();
-            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
-            var texture = THREE.ImageUtils.loadTexture("img/casa.jpg");
-            var material = new THREE.MeshBasicMaterial({ map: texture });
-            var mesh = new THREE.Mesh(geometry, material);
-
-            object.add(mesh);
-
-            return object;
-        };
-
-        function createModel2() {
-            var object = new THREE.Object3D();
-            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
-            var texture = THREE.ImageUtils.loadTexture("img/3DVTech.jpg");
-            var material = new THREE.MeshBasicMaterial({ map: texture });
-            var mesh = new THREE.Mesh(geometry, material);
-
-            object.add(mesh);
-
-            return object;
-        };
-
-
-        function createModel3() {
-            var object = new THREE.Object3D();
-            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
-            var texture = THREE.ImageUtils.loadTexture("img/ARTmobilis.jpg");
-            var material = new THREE.MeshBasicMaterial({ map: texture });
-            var mesh = new THREE.Mesh(geometry, material);
-
-            object.add(mesh);
-
-            return object;
-        };
-
-        function updateScenes(corners) {
-            var corners, corner, pose, i;
-
-            for (i = 0; i < corners.length; ++i) {
-                corner = corners[i];
-                corner.x = corner.x - (canvas2d.width / 2);
-                corner.y = (canvas2d.height / 2) - corner.y;
-            }
-
-            stat.start("Posit");
-            pose = posit.pose(corners);
-            stat.stop("Posit");
-
-            stat.start("update");
-            updateObject(plane, pose.bestRotation, pose.bestTranslation);
-            updateObject(model1, pose.bestRotation, pose.bestTranslation);
-            updateObject(model2, pose.bestRotation, pose.bestTranslation);
-            updateObject(model3, pose.bestRotation, pose.bestTranslation);
-            updatePose("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
-            stat.stop("update");
-
-            //plane.visible = false;
-            model1.visible = (current_pattern === 0);
-            model2.visible = (current_pattern === 1);
-            model3.visible = (current_pattern === 2);
-
-            step += 0.025;
-            model1.rotation.y -= step;
-            model2.rotation.y -= step;
-            model3.rotation.y -= step;
-
-            texture.children[0].material.map.needsUpdate = true;
-        };
-
-        function updateObject(object, rotation, translation) {
-            object.scale.x = modelSize;
-            object.scale.y = modelSize;
-            object.scale.z = modelSize;
-
-            object.rotation.x = -Math.asin(-rotation[1][2]);
-            object.rotation.y = -Math.atan2(rotation[0][2], rotation[2][2]);
-            object.rotation.z = Math.atan2(rotation[1][0], rotation[1][1]);
-
-            object.position.x = translation[0];
-            object.position.y = translation[1];
-            object.position.z = -translation[2];
-        };
-
-        function updatePose(id, error, rotation, translation) {
-            var yaw = -Math.atan2(rotation[0][2], rotation[2][2]);
-            var pitch = -Math.asin(-rotation[1][2]);
-            var roll = Math.atan2(rotation[1][0], rotation[1][1]);
-
-            var d = document.getElementById(id);
-            d.innerHTML = " error: " + error
-                        + "<br/>"
-                        + " x: " + (translation[0] | 0)
-                        + " y: " + (translation[1] | 0)
-                        + " z: " + (translation[2] | 0)
-                        + "<br/>"
-                        + " yaw: " + Math.round(-yaw * 180.0 / Math.PI)
-                        + " pitch: " + Math.round(-pitch * 180.0 / Math.PI)
-                        + " roll: " + Math.round(roll * 180.0 / Math.PI);
-        };
-
-
-
-
-
-        /////////////////////
-        // Point detection utilities
+        // Corners detection
         /////////////////////
 
         function detect_keypoints(img, corners, max_allowed) {
@@ -785,6 +311,453 @@ angular.module('artmobilis').controller('ARImageController',
 
             return pt;
         }
+
+        /////////////////////
+        // Pattern Training
+        /////////////////////
+
+        // using <img>
+        var load_trained_patterns = function (name) {
+            var img2 = document.getElementById(name);
+            var contx = container.getContext('2d');
+            contx.drawImage(img2, 0, 0, templateX, templateY);
+            var imageData = contx.getImageData(0, 0, templateX, templateY);
+
+            trained_8u = new jsfeat.matrix_t(templateX, templateY, jsfeat.U8_t | jsfeat.C1_t);
+            jsfeat.imgproc.grayscale(imageData.data, templateX, templateY, trained_8u);
+            trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimension (sinon pas de rescale et rien ne se passe)
+        };
+
+        // using direct link
+        var load_trained_patterns2 = function (name) {
+            img = new Image();
+            img.onload = function () {
+                var contx = container.getContext('2d');
+                contx.drawImage(img, 0, 0, templateX, templateY);
+
+                var imageData = contx.getImageData(0, 0, templateX, templateY);
+                trained_8u = new jsfeat.matrix_t(templateX, templateY, jsfeat.U8_t | jsfeat.C1_t);
+                jsfeat.imgproc.grayscale(imageData.data, templateX, templateY, trained_8u);
+                trainpattern(trained_8u); // le pattern doit etre plus grand que 512*512 dans au moins une dimension (sinon pas de rescale et rien ne se passe)
+            }
+            img.src = name;
+        };
+
+        $scope.train_pattern = function () {
+            trainpattern(img_u8);
+        };
+
+        // train a pattern: extract corners multiscale, compute descriptor, store result 
+        trainpattern = function (img) {
+            var lev = 0, i = 0;
+            var sc = 1.0;
+            var max_pattern_size = 512;
+            var max_per_level = 300;
+            var sc_inc = Math.sqrt(2.0); // magic number ;)
+            var lev0_img = new jsfeat.matrix_t(img.cols, img.rows, jsfeat.U8_t | jsfeat.C1_t);
+            var lev_img = new jsfeat.matrix_t(img.cols, img.rows, jsfeat.U8_t | jsfeat.C1_t);
+            var new_width = 0, new_height = 0;
+            var lev_corners, lev_descr;
+            var corners_num = 0;
+
+            var sc0 = Math.min(max_pattern_size / img.cols, max_pattern_size / img.rows);
+            new_width = (img.cols * sc0) | 0;
+            new_height = (img.rows * sc0) | 0;
+
+            // alloc matches
+            matches[nb_trained] = [];
+            var i = maxMatches;
+            while (--i >= 0) {
+                matches[nb_trained][i] = new match_t();
+            }
+
+            // transform matrix
+            homo3x3[nb_trained] = new jsfeat.matrix_t(3, 3, jsfeat.F32C1_t);
+            match_mask[nb_trained] = new jsfeat.matrix_t(500, 1, jsfeat.U8C1_t);
+
+            // be carefull nothing done if size <512
+            jsfeat.imgproc.resample(img, lev0_img, new_width, new_height);
+
+            // prepare preview
+            pattern_preview[nb_trained] = new jsfeat.matrix_t(new_width >> 1, new_height >> 1, jsfeat.U8_t | jsfeat.C1_t);
+            jsfeat.imgproc.pyrdown(lev0_img, pattern_preview[nb_trained]);
+
+            pattern_corners[nb_trained] = [];
+            pattern_descriptors[nb_trained] = [];
+
+            for (lev = 0; lev < num_train_levels; ++lev) {
+                pattern_corners[nb_trained][lev] = [];
+                lev_corners = pattern_corners[nb_trained][lev];
+
+                // preallocate corners array
+                i = (new_width * new_height) >> lev;
+                while (--i >= 0) {
+                    lev_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
+                }
+
+                pattern_descriptors[nb_trained][lev] = new jsfeat.matrix_t(32, max_per_level, jsfeat.U8_t | jsfeat.C1_t);
+            }
+
+            // do the first level
+            lev_corners = pattern_corners[nb_trained][0];
+            lev_descr = pattern_descriptors[nb_trained][0];
+
+            jsfeat.imgproc.gaussian_blur(lev0_img, lev_img, options.blur_size | 0); // this is more robust
+            corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
+            jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
+
+            console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
+
+            sc /= sc_inc;
+
+            // lets do multiple scale levels
+            // we can use Canvas context draw method for faster resize 
+            // but its nice to demonstrate that you can do everything with jsfeat
+            for (lev = 1; lev < num_train_levels; ++lev) {
+                lev_corners = pattern_corners[nb_trained][lev];
+                lev_descr = pattern_descriptors[nb_trained][lev];
+
+                new_width = (lev0_img.cols * sc) | 0;
+                new_height = (lev0_img.rows * sc) | 0;
+
+                jsfeat.imgproc.resample(lev0_img, lev_img, new_width, new_height);
+                jsfeat.imgproc.gaussian_blur(lev_img, lev_img, options.blur_size | 0);
+                corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
+                jsfeat.orb.describe(lev_img, lev_corners, corners_num, lev_descr);
+
+                // fix the coordinates due to scale level
+                for (i = 0; i < corners_num; ++i) {
+                    lev_corners[i].x *= 1. / sc;
+                    lev_corners[i].y *= 1. / sc;
+                }
+
+                console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
+
+                sc /= sc_inc;
+            }
+
+            nb_trained++;
+        };
+
+        /////////////////////
+        // Demo initialisation
+        /////////////////////
+
+        function demo_app(videoWidth, videoHeight) {
+            canvasWidth = canvas2d.width;
+            canvasHeight = canvas2d.height;
+            ctx = canvas2d.getContext('2d');
+
+            ctx.fillStyle = "rgb(0,255,0)";
+            ctx.strokeStyle = "rgb(0,255,0)";
+
+            // JSfeat Orb detection+matching part
+            img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+            img_u8_smooth = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);            // after blur
+
+            // we will limit to 500 strongest points
+            screen_descriptors = new jsfeat.matrix_t(32, 500, jsfeat.U8_t | jsfeat.C1_t);
+
+            // recorded detection results for each pattern
+            pattern_descriptors = [];
+            pattern_preview = [];
+            screen_corners = [];
+            pattern_corners = [];
+            matches = [];
+
+            // transform matrix
+            homo3x3 = [];
+            match_mask = [];
+
+            // live displayed corners
+            var i = maxCorners; // 2000 corners maximum
+            while (--i >= 0)
+                screen_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
+
+            // Aruco part
+            posit = new POS.Posit(modelSize, canvas2d.width);
+
+            createRenderers();
+            createScenes();
+
+            options = new demo_opt();
+            /* gui = new dat.GUI();
+             gui.add(options, "blur_size", 3, 9).step(1);
+             gui.add(options, "lap_thres", 1, 100);
+             gui.add(options, "eigen_thres", 1, 100);
+             gui.add(options, "match_threshold", 16, 128);
+             gui.add(options, "train_pattern");*/
+
+            stat.add("grayscale");
+            stat.add("gauss blur");
+            stat.add("keypoints");
+            stat.add("orb descriptors");
+            stat.add("matching");
+            stat.add("Posit");
+            stat.add("update");
+
+
+            //load_trained_patterns2("http://localhost:4400/img/trained/vsd1.jpg");
+            //load_trained_patterns2("http://localhost:4400/img/trained/3Dtricart.jpg");
+            load_trained_patterns("trained0");
+            load_trained_patterns("trained1");
+            load_trained_patterns("trained2");
+        }
+
+        /////////////////////
+        // Threejs initialisation
+        /////////////////////
+
+        function createRenderers() {
+            renderer3d = new THREE.WebGLRenderer({ canvas: canvas3D, alpha: true });
+            renderer3d.setClearColor(0xffffff, 0);
+            renderer3d.setSize(canvas2d.width, canvas2d.height);
+
+            // to project direct texture
+            scene1 = new THREE.Scene();
+            camera1 = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5);
+            scene1.add(camera1);
+
+            // for 3d projection
+            scene2 = new THREE.Scene();
+            camera2 = new THREE.PerspectiveCamera(40, canvas2d.width / canvas2d.height, 1, 1000);
+            scene2.add(camera2);
+        };
+
+        function render() {
+            renderer3d.autoClear = false;
+            renderer3d.clear();
+            //renderer3d.render(scene1, camera1);
+            renderer3d.render(scene2, camera2);
+        };
+
+        function createScenes() {
+            plane = createPlane();
+            scene2.add(plane);
+
+            texture = createTexture();
+            scene1.add(texture);
+
+            model1 = createModel1();
+            model2 = createModel2();
+            model3 = createModel3();
+            scene2.add(model1);
+            scene2.add(model2);
+            scene2.add(model3);
+        };
+
+        function createPlane() {
+            var object = new THREE.Object3D(),
+                geometry = new THREE.PlaneGeometry(1.0, 1.0, 0.0),
+                material = new THREE.MeshNormalMaterial({ transparent: true, opacity: 0.5 }),
+                mesh = new THREE.Mesh(geometry, material);
+
+            object.add(mesh);
+
+            return object;
+        };
+
+        function createTexture() {
+            var texture = new THREE.Texture(video),
+                object = new THREE.Object3D(),
+                geometry = new THREE.PlaneGeometry(1.0, 1.0, 0.0),
+                material = new THREE.MeshBasicMaterial({ map: texture, depthTest: false, depthWrite: false }),
+                mesh = new THREE.Mesh(geometry, material);
+
+            object.position.z = -1;
+
+            object.add(mesh);
+
+            return object;
+        };
+
+        function createModel1() {
+            var object = new THREE.Object3D();
+            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
+            var texture = THREE.ImageUtils.loadTexture("img/casa.jpg");
+            var material = new THREE.MeshBasicMaterial({ map: texture });
+            var mesh = new THREE.Mesh(geometry, material);
+
+            object.add(mesh);
+
+            return object;
+        };
+
+        function createModel2() {
+            var object = new THREE.Object3D();
+            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
+            var texture = THREE.ImageUtils.loadTexture("img/3DVTech.jpg");
+            var material = new THREE.MeshBasicMaterial({ map: texture });
+            var mesh = new THREE.Mesh(geometry, material);
+
+            object.add(mesh);
+
+            return object;
+        };
+
+
+        function createModel3() {
+            var object = new THREE.Object3D();
+            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
+            var texture = THREE.ImageUtils.loadTexture("img/ARTmobilis.jpg");
+            var material = new THREE.MeshBasicMaterial({ map: texture });
+            var mesh = new THREE.Mesh(geometry, material);
+
+            object.add(mesh);
+
+            return object;
+        };
+
+        /////////////////////
+        // video live Processing
+        /////////////////////
+
+        function tick() {
+            compatibility.requestAnimationFrame(tick);
+            stat.new_frame();
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                ctx.drawImage(video, 0, 0, 640, 480);
+                var imageData = ctx.getImageData(0, 0, 640, 480);
+
+                stat.start("grayscale");
+                jsfeat.imgproc.grayscale(imageData.data, 640, 480, img_u8);
+                stat.stop("grayscale");
+
+                stat.start("gauss blur");
+                jsfeat.imgproc.gaussian_blur(img_u8, img_u8_smooth, options.blur_size | 0);
+                stat.stop("gauss blur");
+
+                jsfeat.yape06.laplacian_threshold = options.lap_thres | 0;
+                jsfeat.yape06.min_eigen_value_threshold = options.eigen_thres | 0;
+
+                stat.start("keypoints");
+                num_corners = detect_keypoints(img_u8_smooth, screen_corners, 500);
+                stat.stop("keypoints");
+
+                stat.start("orb descriptors");
+                jsfeat.orb.describe(img_u8_smooth, screen_corners, num_corners, screen_descriptors);
+                stat.stop("orb descriptors");
+
+                // render result back to canvas
+                var data_u32 = new Uint32Array(imageData.data.buffer);
+                render_corners(screen_corners, num_corners, data_u32, 640);
+
+                // render pattern and matches
+                var num_matches = [];
+                var good_matches = 0;
+
+                // search for the rigth pattern
+                stat.start("matching");
+                var id = 0;
+                var str, found = false;
+                for (id = 0; id < nb_trained; ++id) {
+                    num_matches[id] = match_pattern(id);
+                    str += "<br>Id : " + id + " nbMatches : " + num_matches[id];
+                    if (num_matches[id] < 20 || found)
+                        continue;
+
+                    good_matches = find_transform(matches[id], num_matches[id], id);
+                    str += " nbGood : " + good_matches;
+                    if (good_matches > 8) {
+                        current_pattern = id;
+                        found = true;
+                    }
+                }
+                matchingresult.innerHTML = str;
+                stat.stop("matching");
+
+                // display last detected pattern
+                if (pattern_preview[current_pattern]) {
+                    render_mono_image(pattern_preview[current_pattern].data, data_u32, pattern_preview[current_pattern].cols, pattern_preview[current_pattern].rows, 640);
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+
+                // display matching result and 3d when detection
+                if (num_matches[current_pattern]) { // last detected
+                    render_matches(ctx, matches[current_pattern], num_matches[current_pattern]);
+                    if (found) {
+                        render_pattern_shape(ctx);
+                        updateScenes(shape_pts);
+                        render();
+                    }
+                    else
+                        renderer3d.clear();
+                }
+
+                timeproc.innerHTML = stat.log();
+            }
+        }
+
+        /////////////////////
+        // 3D Pose and rendering
+        /////////////////////
+
+        function updateScenes(corners) {
+            var corners, corner, pose, i;
+
+            for (i = 0; i < corners.length; ++i) {
+                corner = corners[i];
+                corner.x = corner.x - (canvas2d.width / 2);
+                corner.y = (canvas2d.height / 2) - corner.y;
+            }
+
+            stat.start("Posit");
+            pose = posit.pose(corners);
+            stat.stop("Posit");
+
+            stat.start("update");
+            updateObject(plane, pose.bestRotation, pose.bestTranslation);
+            updateObject(model1, pose.bestRotation, pose.bestTranslation);
+            updateObject(model2, pose.bestRotation, pose.bestTranslation);
+            updateObject(model3, pose.bestRotation, pose.bestTranslation);
+            updatePose("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
+            stat.stop("update");
+
+            //plane.visible = false;
+            model1.visible = (current_pattern === 0);
+            model2.visible = (current_pattern === 1);
+            model3.visible = (current_pattern === 2);
+
+            step += 0.025;
+            model1.rotation.y -= step;
+            model2.rotation.y -= step;
+            model3.rotation.y -= step;
+
+            texture.children[0].material.map.needsUpdate = true;
+        };
+
+        function updateObject(object, rotation, translation) {
+            object.scale.x = modelSize;
+            object.scale.y = modelSize;
+            object.scale.z = modelSize;
+
+            object.rotation.x = -Math.asin(-rotation[1][2]);
+            object.rotation.y = -Math.atan2(rotation[0][2], rotation[2][2]);
+            object.rotation.z = Math.atan2(rotation[1][0], rotation[1][1]);
+
+            object.position.x = translation[0];
+            object.position.y = translation[1];
+            object.position.z = -translation[2];
+        };
+
+        function updatePose(id, error, rotation, translation) {
+            var yaw = -Math.atan2(rotation[0][2], rotation[2][2]);
+            var pitch = -Math.asin(-rotation[1][2]);
+            var roll = Math.atan2(rotation[1][0], rotation[1][1]);
+
+            var d = document.getElementById(id);
+            d.innerHTML = " error: " + error
+                        + "<br/>"
+                        + " x: " + (translation[0] | 0)
+                        + " y: " + (translation[1] | 0)
+                        + " z: " + (translation[2] | 0)
+                        + "<br/>"
+                        + " yaw: " + Math.round(-yaw * 180.0 / Math.PI)
+                        + " pitch: " + Math.round(-pitch * 180.0 / Math.PI)
+                        + " roll: " + Math.round(roll * 180.0 / Math.PI);
+        };
+
 
         /////////////////////
         // Drawers
