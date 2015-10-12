@@ -65,6 +65,15 @@ angular.module('artmobilis', ['ionic', 'leaflet-directive', 'ngCordova', 'igTrun
           }
         }
       })
+       .state('app.contact', {
+        url: "/contact",
+        views: {
+          'menuContent' :{
+            templateUrl: "templates/contact.html",
+            controller: 'ContactController'
+          }
+        }
+      })
   .state('app.accueil', {
       url: '/accueil',
       views: {
