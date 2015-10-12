@@ -19,12 +19,10 @@ Install ionic for cordova :
 
     npm install -g cordova ionic
 
-###Ubuntu 14.10
+###Linux
 
-Install following dependencies 
-- nodejs
-- cordova-ubuntu-2.8
-- npm
+####Install Node.js
+See : https://github.com/nodejs/node-v0.x-archive/wiki/Installing-Node.js-via-package-manager
 
 ####Install ionic for cordova :
 
