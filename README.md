@@ -49,7 +49,17 @@ nota: you can test another model : sidemenu , tabs , blank
     ionic serve
 
 ###Ajout plateforme Android
-**TODO**
+
+	ionic platform add android
+	ionic build android
+	ionic run android
 
 ###Ajout sur Play store
-**TODO**
+
+	ionic build android --release
+	Voir http://developer.android.com/tools/publishing/app-signing.html
+	keytool -genkey -v -keystore artmobilis.keystore -alias artmobilis -keyalg RSA -keysize 2048 -validity 10000
+	jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore artmobilis.keystore artmobilis-unaligned.apk artmobilis
+	jarsigner -verify -verbose -certs artmobilis-unaligned.apk
+	// zipalign dans C:\Program Files (x86)\Android\android-sdk\build-tools\23.0.1
+	zipalign -v 4 artmobilis-unaligned.apk artmobilis.apk
