@@ -12,8 +12,8 @@ Repository dédié au code lui même; applications Android "native" et "web".
 ###Windows 7 /8 / 10
 
 Install following software 
-- (nodejs)[http://nodejs.org]
-- (cordova)[http://cordova.apache.org]
+- [nodejs](http://nodejs.org)
+- [cordova](http://cordova.apache.org)
 
 Install ionic for cordova :
 
