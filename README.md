@@ -23,9 +23,24 @@ Install ionic for cordova :
 
     sudo npm install -g cordova ionic
 
-
 Before starting you need to manually link node to nodejs
 
     sudo ln -s /usr/bin/nodejs /usr/bin/node
 
-Now you can run and dev for ArtMobilis .... welcome !
+Now you can run and dev for ArtMobilis .... let's test if everything is allright
+
+Check if ionic is well installed
+
+    ionic start ProjectName sidemenu
+    
+nota: you can test another model : sidemenu , tabs , blank
+
+    cd ProjectName
+    
+    ionic serve
+
+###Ajout plateforme Android
+TODO
+
+###Ajout sur Play store
+TODO
