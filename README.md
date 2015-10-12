@@ -9,6 +9,9 @@ Repository dédié au code lui même; applications Android "native" et "web".
 
 ##Before you can run / devellop
 
+###Windows 7 /8 / 10
+
+
 ###Ubuntu 14.10
 
 Install following dependencies 
