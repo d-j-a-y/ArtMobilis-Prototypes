@@ -132,8 +132,6 @@
 
             model = createModel();
             scene.add(model);
-
-           // camera.position.z = 5;
         };
 
         function createModel() {
@@ -168,9 +166,6 @@
                 stat.start("Update");
                 updateObject(model, pose.bestRotation, pose.bestTranslation);
                 stat.stop("Update");
-
-                step += 0.025;
-                model.rotation.z -= step;
             }
         };
 
