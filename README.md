@@ -9,10 +9,15 @@ Repository dédié au code lui même; applications Android "native" et "web".
 
 ##Before you can run / devellop
 
-**TODO**
-
 ###Windows 7 /8 / 10
 
+Install following software 
+- (nodejs)[http://nodejs.org]
+- (cordova)[http://cordova.apache.org]
+
+Install ionic for cordova :
+
+    npm install -g cordova ionic
 
 ###Ubuntu 14.10
 
@@ -21,15 +26,17 @@ Install following dependencies
 - cordova-ubuntu-2.8
 - npm
 
-Install ionic for cordova :
+####Install ionic for cordova :
 
     sudo npm install -g cordova ionic
 
-Before starting you need to manually link node to nodejs
+####Before starting you need to manually link node to nodejs
 
     sudo ln -s /usr/bin/nodejs /usr/bin/node
 
 Now you can run and dev for ArtMobilis .... let's test if everything is allright
+
+##Check your dev' setup
 
 Check if ionic is well installed
 
