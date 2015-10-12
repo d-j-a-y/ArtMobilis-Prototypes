@@ -9,6 +9,8 @@ Repository dédié au code lui même; applications Android "native" et "web".
 
 ##Before you can run / devellop
 
+**TODO**
+
 ###Windows 7 /8 / 10
 
 
@@ -40,7 +42,7 @@ nota: you can test another model : sidemenu , tabs , blank
     ionic serve
 
 ###Ajout plateforme Android
-TODO
+**TODO**
 
 ###Ajout sur Play store
-TODO
+**TODO**
