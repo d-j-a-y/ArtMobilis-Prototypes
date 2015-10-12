@@ -17,12 +17,11 @@ angular.module('artmobilis').controller('MapController',
       LocationsService,
       InstructionsService
       ) {
+        $scope.$on('$ionicView.enter', function (e) {
 
-        /**
-         * Once state loaded, get put map on scope.
-         */
-        $scope.$on("$stateChangeSuccess", function () {
-
+        });
+        $scope.$on("$ionicView.loaded", function (e) {
+          
             $scope.locations = LocationsService.savedLocations;
             //$scope.newLocation;
 
@@ -45,10 +44,15 @@ angular.module('artmobilis').controller('MapController',
                 $scope.show(i);
             };
 
-            $scope.goTo(0);
+            $scope.goTo(0); 
 
+            
+        });
+
+        $scope.$on("$ionicView.beforeLeave", function (e) {
 
         });
+ 
 
         var Location = function () {
             if (!(this instanceof Location)) return new Location();
