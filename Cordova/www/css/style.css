@@ -238,15 +238,20 @@ body {
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
   	background: rgba(255,255,255, 0.8);
-    width: 240px;
+	width: 240px;
   	box-shadow: 0 3px 14px rgba(0,0,0,0.9);
 }
 
+.listcontact > li
+{
+	list-style: square inside;
+}
+
 .overlapcanvas{
-	width:640; 
+	width:640;
 	height:480;
 	position: absolute;
-    float: left;
+	float: left;
 	top: 0px;
 	left: 0px;
 }
