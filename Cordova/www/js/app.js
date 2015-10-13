@@ -26,15 +26,15 @@ angular.module('artmobilis', ['ionic', 'leaflet-directive', 'ngCordova', 'igTrun
       .state('app', {
         url: "/app",
         abstract: true,
-        templateUrl: "templates/menu.html",
-        controller: 'MapController'
+        templateUrl: "templates/menu.html"
       })
 
       .state('app.carte', {
         url: "/carte",
         views: {
           'menuContent' :{
-            templateUrl: "templates/map.html"
+              templateUrl: "templates/map.html",
+              controller: 'MapController'
           }
         }
       })
@@ -74,14 +74,14 @@ angular.module('artmobilis', ['ionic', 'leaflet-directive', 'ngCordova', 'igTrun
           }
         }
       })
-  .state('app.accueil', {
-      url: '/accueil',
-      views: {
-          'menuContent': {
-              templateUrl: 'templates/accueil.html'
+      .state('app.accueil', {
+          url: '/accueil',
+          views: {
+              'menuContent': {
+                  templateUrl: 'templates/accueil.html'
+              }
           }
-      }
-  })
+      })
 
-    $urlRouterProvider.otherwise("/app/accueil");
+    $urlRouterProvider.otherwise("/app/carte");
   });
