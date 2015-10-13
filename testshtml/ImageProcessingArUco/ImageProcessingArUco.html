@@ -16,8 +16,8 @@
 
     <video id="webcam" style="display:none;" height="480" width="640"></video>
     <div style=" width:640px;height:480px;margin: 10px auto;">
-        <canvas id="canvas2d" width="640" height="480"></canvas>
-        <canvas id="canvas3d" width="640" height="480"></canvas>
+        <canvas id="canvas2d" width="640" height="480" style="position:absolue;" ></canvas>
+        <canvas id="canvas3d" width="640" height="480" style="position:absolue;"></canvas>
         <div id="log"></div>
     </div>
 
@@ -60,6 +60,7 @@
                 detector = new AR.Detector();
                 posit = new POS.Posit(modelSize, canvas2d.width);
 
+//opengl / pour threejs
                 createRenderersScene();
 
                 compatibility.requestAnimationFrame(tick);
@@ -82,6 +83,7 @@
                     var markers = detector.detect(imageData);
                     stat.stop("DetectCorners");
                     drawCorners(markers);
+                    //recalcule de la pause
                     updateScenes(markers);
                     render();
                 }
@@ -166,6 +168,9 @@
                 stat.start("Update");
                 updateObject(model, pose.bestRotation, pose.bestTranslation);
                 stat.stop("Update");
+                
+                model.rotation.z = step += 0.25;
+                
             }
         };
 

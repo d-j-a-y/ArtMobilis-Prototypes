@@ -105,7 +105,7 @@ angular.module('artmobilis').controller('ARImageController',
         var renderer3d;
         var scene1, scene2;
         var camera1, camera2;
-        var plane, model1, model2, model3, texture;
+        var plane, model1, model2, model3, model4, texture;
         var step = 0.0;
         var modelSize = 35.0; //millimeters
 
@@ -347,7 +347,7 @@ angular.module('artmobilis').controller('ARImageController',
             trainpattern(img_u8);
         };
 
-        // train a pattern: extract corners multiscale, compute descriptor, store result 
+        // train a pattern: extract corners multiscale, compute descriptor, store result
         trainpattern = function (img) {
             var lev = 0, i = 0;
             var sc = 1.0;
@@ -411,7 +411,7 @@ angular.module('artmobilis').controller('ARImageController',
             sc /= sc_inc;
 
             // lets do multiple scale levels
-            // we can use Canvas context draw method for faster resize 
+            // we can use Canvas context draw method for faster resize
             // but its nice to demonstrate that you can do everything with jsfeat
             for (lev = 1; lev < num_train_levels; ++lev) {
                 lev_corners = pattern_corners[nb_trained][lev];
@@ -502,6 +502,7 @@ angular.module('artmobilis').controller('ARImageController',
             load_trained_patterns("trained0");
             load_trained_patterns("trained1");
             load_trained_patterns("trained2");
+            load_trained_patterns("trained3");
         }
 
         /////////////////////
@@ -541,9 +542,11 @@ angular.module('artmobilis').controller('ARImageController',
             model1 = createModel1();
             model2 = createModel2();
             model3 = createModel3();
+                        model4 = createModel4();
             scene2.add(model1);
             scene2.add(model2);
             scene2.add(model3);
+            scene2.add(model4);
         };
 
         function createPlane() {
@@ -600,6 +603,19 @@ angular.module('artmobilis').controller('ARImageController',
             var object = new THREE.Object3D();
             var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
             var texture = THREE.ImageUtils.loadTexture("img/ARTmobilis.jpg");
+            var material = new THREE.MeshBasicMaterial({ map: texture });
+            var mesh = new THREE.Mesh(geometry, material);
+
+            object.add(mesh);
+
+            return object;
+        };
+
+
+        function createModel4() {
+            var object = new THREE.Object3D();
+            var geometry = new THREE.SphereGeometry(0.2, 15, 15, Math.PI);
+            var texture = THREE.ImageUtils.loadTexture("img/tasse.png");
             var material = new THREE.MeshBasicMaterial({ map: texture });
             var mesh = new THREE.Mesh(geometry, material);
 
